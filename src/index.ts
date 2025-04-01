@@ -131,7 +131,7 @@ export async function apply(ctx: Context, config: Config) {
         }
         // 如果原图不存在则下载
         else {
-          let res: ArrayBuffer = new ArrayBuffer();
+          let res: ArrayBuffer = new ArrayBuffer(0);
           let index = 0;
           while (res.byteLength <= 0 && index < config.retryCount) {
             res = await ctx.http.get(`${urls[i]}`, {

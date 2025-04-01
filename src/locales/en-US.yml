@@ -1,0 +1,8 @@
+_config:
+  - $desc: Basic settings
+    url: JM domain name
+    sendMethod: Send method
+    retryCount: Retry limit
+  - password: Compressed package password
+  - $desc: Developer Options
+    debug: Debug mode, output more information

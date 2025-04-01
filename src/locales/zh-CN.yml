@@ -1,0 +1,17 @@
+commands:
+  jm:
+    description: 下载JM漫画，无需python，纯ts实现！
+    examples: |-
+      jm 114514
+    messages:
+      empty: JM ID 不能为空
+      notFound: 找不到该车牌
+      pleaseWait: 正在获取，请等待亿会
+_config:
+  - $desc: 基础设置
+    url: JM域名
+    sendMethod: 发送方式
+    retryCount: 重试次数限制
+  - password: 压缩包密码
+  - $desc: 开发者选项
+    debug: 调试模式，输出更多信息

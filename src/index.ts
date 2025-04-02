@@ -7,6 +7,8 @@ import {} from "koishi-plugin-puppeteer";
 import { Album } from "./entity/Album";
 import { buildHtmlContent } from "./utils/Const";
 import { fileExistsAsync, getDomainFromGithub } from "./utils/Utils";
+import { JM_ID } from "./utils/Regexp";
+import cron from "node-cron";
 
 export const name = "jmcomic";
 
@@ -15,12 +17,18 @@ export interface Config {
   sendMethod?: "zip" | "pdf";
   retryCount?: number;
   password?: string;
+  level?: number;
+  cache?: boolean;
+  autoDelete?: boolean;
+  deleteInStart?: boolean;
+  keepDays?: number;
+  cron?: string;
   debug?: boolean;
 }
 
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
-    url: Schema.string().required(),
+    url: Schema.string().required().default("18comic-mygo.vip"),
     retryCount: Schema.number().min(1).max(5).default(5),
     sendMethod: Schema.union(["zip", "pdf"]).default("pdf"),
   }),
@@ -28,6 +36,26 @@ export const Config: Schema<Config> = Schema.intersect([
     Schema.object({
       sendMethod: Schema.const("zip").required(),
       password: Schema.string(),
+      level: Schema.number().min(0).max(9).default(6).role("slider"),
+    }),
+    Schema.object({}),
+  ]),
+  Schema.object({
+    cache: Schema.boolean().default(false),
+  }),
+  Schema.union([
+    Schema.object({
+      cache: Schema.const(true).required(),
+      autoDelete: Schema.boolean().default(false),
+    }),
+    Schema.object({}),
+  ]),
+  Schema.union([
+    Schema.object({
+      autoDelete: Schema.const(true).required(),
+      cron: Schema.string().required().default("0 0 * * *"),
+      deleteInStart: Schema.boolean().default(false),
+      keepDays: Schema.number().min(1).default(7),
     }),
     Schema.object({}),
   ]),
@@ -48,6 +76,7 @@ export let http: HTTP;
 export async function apply(ctx: Context, config: Config) {
   http = ctx.http;
 
+  // i18n
   ctx.i18n.define("en-US", require("./locales/en-US"));
   ctx.i18n.define("zh-CN", require("./locales/zh-CN"));
 
@@ -55,9 +84,45 @@ export async function apply(ctx: Context, config: Config) {
 
   const root = path.join(ctx.baseDir, "data", "jmcomic");
 
-  ctx.command("jm <jmId:number>").action(async ({ session }, jmId) => {
+  if (cron.validate(config.cron)) {
+    cron.schedule(config.cron, async () => {
+      const root = path.join(ctx.baseDir, "data", "jmcomic", "album");
+      // 读取目录内容，并获取文件/文件夹的详细信息
+      const dirEntries = await fs.readdir(root, {
+        withFileTypes: true,
+      });
+      // 过滤出文件夹类型的条目
+      const subfolderNames = dirEntries
+        .filter((dirent) => dirent.isDirectory())
+        .map((dirent) => dirent.name);
+      // 循环判断所有文件夹
+      for (const folder of subfolderNames) {
+        // 获取文件夹状态信息
+        const stat = await fs.stat(`${root}/${folder}`);
+        // 提取创建时间
+        const creationTime = stat.birthtime || stat.ctime;
+        // 当前时间
+        const now = new Date();
+        // 计算时间差（毫秒）
+        const diffTime = Math.abs(now.getTime() - creationTime.getTime());
+        // 转换为天数并取整
+        const diffDays = Math.floor(diffTime / (1000 * 3600 * 24));
+        if (diffDays >= config.keepDays) {
+          fs.rmdir(`${root}/${folder}`, { recursive: true });
+        }
+      }
+    });
+  }
+
+  ctx.command("jm <jmId:string>").action(async ({ session }, jmId) => {
     const messageId = session.messageId;
+    // id不能为空
     if (!jmId) {
+      await session.send([h.quote(messageId), h.text(session.text(".empty"))]);
+      return;
+    }
+    // 输入是否合法
+    else if (!JM_ID.exec(jmId)) {
       await session.send([h.quote(messageId), h.text(session.text(".empty"))]);
       return;
     }
@@ -95,7 +160,7 @@ export async function apply(ctx: Context, config: Config) {
      * @param id photoId
      * @param multipart 是否多章节，默认否
      */
-    const downloadImage = async (id: number, multipart: boolean = false) => {
+    const downloadImage = async (id: string, multipart: boolean = false) => {
       const sufix = multipart ? `/${id}` : "";
 
       const url = `https://${config.url}/photo/${id}`;
@@ -210,7 +275,8 @@ export async function apply(ctx: Context, config: Config) {
                 destpath: episode.name,
               })),
               zipPath,
-              config.password
+              config.password,
+              config.level
             );
           }
           // 单章节
@@ -218,7 +284,8 @@ export async function apply(ctx: Context, config: Config) {
             await archiverImage(
               [{ directory: `${path}/decoded`, destpath: false }],
               zipPath,
-              config.password
+              config.password,
+              config.level
             );
           }
         }
@@ -296,5 +363,7 @@ export async function apply(ctx: Context, config: Config) {
         h.file(buffer, sufix, { title: `${name}(${jmId}).${sufix}` }),
       ]);
     }
+    // 没开缓存则删除文件
+    if (!config.cache) fs.rmdir(path, { recursive: true });
   });
 }

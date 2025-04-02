@@ -12,7 +12,7 @@ export class Album {
   /**
    * 章节列表
    */
-  private episodes: { name: string; photoId: number }[] = [];
+  private episodes: { name: string; photoId: string }[] = [];
   /**
    * 总页数
    */
@@ -72,10 +72,7 @@ export class Album {
     if (episode_div) {
       const name_id = episode_div.matchAll(regexp.JM_ALBUM_EPISODE_NAME_ID);
       const name_id_list = Array.from(name_id);
-      this.episodes = name_id_list.map((m) => ({
-        photoId: parseInt(m[1]),
-        name: m[2],
-      }));
+      this.episodes = name_id_list.map((m) => ({ photoId: m[1], name: m[2] }));
     }
     // 总页数
     this.page_count = parseInt(html.match(regexp.JM_ALBUM_PAGE_COUNT)[1]);
@@ -109,6 +106,14 @@ export class Album {
     return Array.from(matches, (m) => m[1]);
   }
 
+  public getId() {
+    return this.id;
+  }
+
+  public getJMId() {
+    return this.jmId;
+  }
+
   public getName() {
     return this.name;
   }
@@ -127,5 +132,45 @@ export class Album {
 
   public getPhotos() {
     return this.photos;
+  }
+
+  public getPageCount() {
+    return this.page_count;
+  }
+
+  public getPublicDate() {
+    return this.public_date;
+  }
+
+  public getUpdateDate() {
+    return this.update_date;
+  }
+
+  public getWorks() {
+    return this.works;
+  }
+
+  public getActors() {
+    return this.actors;
+  }
+
+  public getTags() {
+    return this.tags;
+  }
+
+  public getAuthor() {
+    return this.authors;
+  }
+
+  public getDescription() {
+    return this.description;
+  }
+
+  public getLikes() {
+    return this.likes;
+  }
+
+  public getViews() {
+    return this.views;
   }
 }

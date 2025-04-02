@@ -25,11 +25,13 @@
     "archiver": "^7.0.1",
     "archiver-zip-encrypted": "^2.0.0",
     "crypto": "^1.0.1",
+    "node-cron": "^3.0.3",
     "sharp": "^0.33.5",
     "zip-lib": "^1.0.5"
   },
   "devDependencies": {
     "@types/archiver": "^6.0.3",
+    "@types/node-cron": "^3.0.11",
     "@types/sharp": "^0.31.1"
   }
 }

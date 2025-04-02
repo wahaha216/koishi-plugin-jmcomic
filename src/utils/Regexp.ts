@@ -1,5 +1,6 @@
 // 通用
 export const JM_SCRAMBLE_ID = /var scramble_id = (\d+);/;
+export const JM_ID = /^(jm)?\d+$/i;
 
 // Photo
 export const JM_PHOTO_NAME_ID = /id="album_photo_(\d+).webp"/g;

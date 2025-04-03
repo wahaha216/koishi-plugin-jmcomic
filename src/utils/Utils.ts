@@ -26,3 +26,34 @@ export async function getDomainFromGithub() {
   );
   return jumpList;
 }
+
+export async function limitPromiseAll<T>(
+  promises: (() => Promise<T>)[],
+  limit: number
+): Promise<T[]> {
+  const result: T[] = [];
+  const executing: Promise<any>[] = [];
+
+  for (const promise of promises) {
+    const p = (async () => {
+      const res = await promise();
+      result.push(res);
+    })();
+
+    executing.push(p);
+
+    if (executing.length >= limit) {
+      // 等待第一个完成的任务
+      await Promise.race(executing);
+      // 移除已完成的 Promise
+      executing.splice(
+        executing.findIndex((task) => task === p),
+        1
+      );
+    }
+  }
+
+  // 等待所有剩余的任务完成
+  await Promise.all(executing);
+  return result;
+}

@@ -24,7 +24,7 @@ export async function decodeImage(
       channels: 3,
       background: { r: 0, g: 0, b: 0 },
     },
-  }).jpeg();
+  }).webp();
 
   // 记录切割结果
   const croppeds: { top: number; cropped: Buffer }[] = [];
@@ -86,13 +86,14 @@ export async function archiverImage(
 
   // 创建输出流
   const output = fs.createWriteStream(outputPath);
-  const archive = archiver.create("zip-encrypted", {
+  const options: archiver.ArchiverOptions = {
     zlib: { level }, // 压缩级别
-    // @ts-ignore
-    encryptionMethod: "aes256", // 使用 AES-256 加密
-    // @ts-ignore
-    password, // 设置密码
-  });
+  };
+  if (password) {
+    options["encryptionMethod"] = "aes256"; // 使用 AES-256 加密
+    options["password"] = password;
+  }
+  const archive = archiver.create("zip-encrypted", options);
 
   // 管道输出到文件
   archive.pipe(output);

@@ -93,7 +93,8 @@ export async function archiverImage(
     options["encryptionMethod"] = "aes256"; // 使用 AES-256 加密
     options["password"] = password;
   }
-  const archive = archiver.create("zip-encrypted", options);
+  // 创建压缩实例
+  const archive = archiver.create(password ? "zip-encrypted" : "zip", options);
 
   // 管道输出到文件
   archive.pipe(output);

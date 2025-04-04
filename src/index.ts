@@ -75,10 +75,12 @@ export const inject = {
 export let http: HTTP;
 export let logger: Logger;
 export let puppeteer: Puppeteer;
+export let retryCount: number;
 
 export async function apply(ctx: Context, config: Config) {
   http = ctx.http;
   puppeteer = ctx.puppeteer;
+  retryCount = config.retryCount;
 
   // i18n
   ctx.i18n.define("en-US", require("./locales/en-US"));
@@ -375,9 +377,20 @@ export async function apply(ctx: Context, config: Config) {
   ctx.command("jm <jmId:string>").action(async ({ session }, jmId) => {
     const jmClient = new JMAppClient(root);
     // jmClient.login("liyen95079", 'xG_0(G5|*d<|"1(pM$Wz');
-    const photo = await jmClient.getPhotoById(jmId);
-    logger.info(`photo: ${photo}`)
-    const id = photo.getId();
-    await jmClient.photoToZip(photo, `${root}/photo/${id}/${photo.getName()}.zip`, "110112113");
+    jmClient.requestScrambleId(jmId);
   });
+  ctx
+    .command("jm.photo <photoId:string>")
+    .alias("本子章节")
+    .action(async ({ session }, photoId) => {
+      const jmClient = new JMAppClient(root);
+      const photo = await jmClient.getPhotoById(photoId);
+      logger.info(`photo: ${photo}`);
+      const id = photo.getId();
+      await jmClient.photoToZip(
+        photo,
+        `${root}/photo/${id}/${photo.getName()}.zip`,
+        "110112113"
+      );
+    });
 }

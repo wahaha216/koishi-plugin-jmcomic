@@ -1,6 +1,8 @@
 import fs from "fs";
-import { http } from "..";
+import { http, logger, retryCount } from "..";
 import { JUMP_URL, URL_LOCATION } from "./Regexp";
+import { HTTP } from "koishi";
+import { IJMResponse } from "../types/JMClient";
 
 export function fileExistsAsync(path: string) {
   try {
@@ -56,4 +58,30 @@ export async function limitPromiseAll<T>(
   // 等待所有剩余的任务完成
   await Promise.all(executing);
   return result;
+}
+
+export async function requestWithRetry<T = IJMResponse>(
+  url: string,
+  method: "GET" | "POST",
+  config: HTTP.RequestConfig,
+  retryIndex: number = 0
+) {
+  try {
+    const res = await http(method, url, config);
+    if (res.data === "Could not connect to mysql") {
+      throw new Error("Could not connect to mysql");
+    }
+    return res.data as T;
+  } catch (error) {
+    logger.error(error);
+
+    if (retryIndex < retryCount) {
+      logger.info(
+        `${url} 请求失败，正在重试... ${retryIndex + 1}/${retryCount}`
+      );
+      return await requestWithRetry(url, method, config, retryIndex + 1);
+    } else {
+      throw new Error(`请求失败，超过最大重试次数: ${url}`);
+    }
+  }
 }

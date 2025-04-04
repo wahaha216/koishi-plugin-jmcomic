@@ -1,7 +1,7 @@
-import { http, logger, puppeteer } from "..";
+import { logger, puppeteer } from "..";
 import crypto from "crypto";
 import FormData from "form-data";
-import axion from "axios";
+import axios from "axios";
 import { IJMAlbum, IJMUser, IJMPhoto, IJMResponse } from "../types/JMClient";
 import { JM_SCRAMBLE_ID } from "../utils/Regexp";
 import { JMClientAbstract } from "../abstract/JMClientAbstract";
@@ -10,7 +10,7 @@ import { JMAppAlbum } from "./JMAppAlbum";
 import { JMPhotoAbstract } from "../abstract/JMPhotoAbstract";
 import * as fs from "fs/promises";
 import { archiverImage, decodeImage, saveImage } from "../utils/Image";
-import { limitPromiseAll } from "../utils/Utils";
+import { limitPromiseAll, requestWithRetry } from "../utils/Utils";
 import { buildHtmlContent } from "../utils/Const";
 
 export class JMAppClient extends JMClientAbstract {
@@ -54,25 +54,26 @@ export class JMAppClient extends JMClientAbstract {
     const formData = new FormData();
     formData.append("username", username);
     formData.append("password", password);
-    const res = await axion.post<IJMResponse>(
+
+    const res = await axios.post<IJMResponse>(
       "https://www.cdnmhws.cc/login",
       formData,
-      { headers }
+      { headers, responseType: "json" }
     );
-    const login = this.decodeBase64<IJMUser>(res.data.data, timestamp);
-    console.log(login);
-    return login;
+    console.log(res);
+
+    return this.decodeBase64<IJMUser>(res.data.data, timestamp);
   }
 
   public async getAlbumById(id: string): Promise<JMAppAlbum> {
     const timestamp = this.getTimeStamp();
     const { token, tokenparam } = this.getTokenAndTokenParam(timestamp);
-    const res = await axion.post<IJMResponse>(
-      "https://www.cdnmhws.cc/album",
-      {},
-      { params: { id }, headers: { token, tokenparam } }
-    );
-    const album_json = this.decodeBase64<IJMAlbum>(res.data.data, timestamp);
+    const res = await requestWithRetry("https://www.cdnmhws.cc/album", "POST", {
+      params: { id },
+      headers: { token, tokenparam },
+      responseType: "json",
+    });
+    const album_json = this.decodeBase64<IJMAlbum>(res.data, timestamp);
     const album = JMAppAlbum.fromJson(album_json);
     return album;
   }
@@ -80,13 +81,15 @@ export class JMAppClient extends JMClientAbstract {
   public async getPhotoById(id: string): Promise<JMAppPhoto> {
     const timestamp = this.getTimeStamp();
     const { token, tokenparam } = this.getTokenAndTokenParam(timestamp);
-    const res = await axion.post<IJMResponse>(
+    const res = await requestWithRetry(
       "https://www.cdnmhwscc.vip/chapter",
-      {},
-      { params: { id }, headers: { token, tokenparam } }
+      "POST",
+      { params: { id }, headers: { token, tokenparam }, responseType: "json" }
     );
-    logger.info(`IJMResponse: ${res.data}`);
-    const photo_json = this.decodeBase64<IJMPhoto>(res.data.data, timestamp);
+    console.log(res);
+
+    logger.info(`IJMResponse: ${res}`);
+    const photo_json = this.decodeBase64<IJMPhoto>(res.data, timestamp);
     const photo = JMAppPhoto.fromJson(photo_json);
     const images = photo.getImages();
     const image_ids = images.map((image) => image.split(".")[0]);
@@ -102,7 +105,9 @@ export class JMAppClient extends JMClientAbstract {
     await limitPromiseAll(
       images.map((image) => async () => {
         const url = `https://cdn-msp.jmapiproxy1.cc/media/photos/${id}/${image}`;
-        const res = await http.get(url, { responseType: "arraybuffer" });
+        const res = await requestWithRetry<ArrayBuffer>(url, "GET", {
+          responseType: "arraybuffer",
+        });
         await saveImage(res, `${path}/${image}`);
       }),
       5
@@ -189,12 +194,11 @@ export class JMAppClient extends JMClientAbstract {
       timestamp,
       JMAppClient.APP_TOKEN_SECRET_2
     );
-    const res = await axion.post<string>(
+    const html = await requestWithRetry<string>(
       "https://www.cdnmhws.cc/chapter_view_template",
-      {},
-      { params: { id }, headers: { token, tokenparam } }
+      "POST",
+      { params: { id }, headers: { token, tokenparam }, responseType: "text" }
     );
-    const html = res.data;
     this.scramble_id = parseInt(html.match(JM_SCRAMBLE_ID)[1]);
     console.log(this.scramble_id);
   }

@@ -2,66 +2,71 @@ import fs from "fs";
 import sharp from "sharp";
 import archiver from "archiver";
 import archiverZipEncrypted from "archiver-zip-encrypted";
+import { Directorys } from "../types";
 
 export async function decodeImage(
   imageBuffer: Buffer | ArrayBuffer,
   num: number,
   path: string
 ) {
-  const metadata = await sharp(Buffer.from(imageBuffer)).metadata();
-  const height = metadata.height || 0;
-  const width = metadata.width || 0;
+  if (num > 0) {
+    const metadata = await sharp(Buffer.from(imageBuffer)).metadata();
+    const height = metadata.height || 0;
+    const width = metadata.width || 0;
 
-  // 计算余数
-  const over = height % num;
-  const move = Math.floor(height / num);
+    // 计算余数
+    const over = height % num;
+    const move = Math.floor(height / num);
 
-  // 创建一个空白的图像缓冲区
-  let decodedImageInstance = sharp({
-    create: {
-      width,
-      height,
-      channels: 3,
-      background: { r: 0, g: 0, b: 0 },
-    },
-  }).webp();
+    // 创建一个空白的图像缓冲区
+    let decodedImageInstance = sharp({
+      create: {
+        width,
+        height,
+        channels: 3,
+        background: { r: 0, g: 0, b: 0 },
+      },
+    }).webp();
+    // 记录切割结果
+    const croppeds: { top: number; cropped: Buffer }[] = [];
 
-  // 记录切割结果
-  const croppeds: { top: number; cropped: Buffer }[] = [];
+    // 循环处理每个分块
+    for (let i = 0; i < num; i++) {
+      // 裁剪高度
+      let currentMove = move;
+      // 裁剪位置
+      let ySrc = height - move * (i + 1) - over;
+      // 新位置
+      let yDst = move * i;
 
-  // 循环处理每个分块
-  for (let i = 0; i < num; i++) {
-    // 裁剪高度
-    let currentMove = move;
-    // 裁剪位置
-    let ySrc = height - move * (i + 1) - over;
-    // 新位置
-    let yDst = move * i;
+      if (i === 0) {
+        currentMove += over;
+      } else {
+        yDst += over;
+      }
 
-    if (i === 0) {
-      currentMove += over;
-    } else {
-      yDst += over;
+      // 裁剪当前块
+      const cropped = await sharp(imageBuffer)
+        .extract({ left: 0, top: ySrc, width, height: currentMove })
+        .toBuffer();
+      croppeds.push({ top: yDst, cropped });
+
+      // 将裁剪的块粘贴到目标位置
     }
-
-    // 裁剪当前块
-    const cropped = await sharp(imageBuffer)
-      .extract({ left: 0, top: ySrc, width, height: currentMove })
-      .toBuffer();
-    croppeds.push({ top: yDst, cropped });
-
-    // 将裁剪的块粘贴到目标位置
+    decodedImageInstance = decodedImageInstance.composite(
+      croppeds.map((c) => ({ input: c.cropped, top: c.top, left: 0 }))
+    );
+    await decodedImageInstance.toFile(path);
+  } else {
+    await sharp(Buffer.from(imageBuffer)).toFile(path);
   }
-  decodedImageInstance = decodedImageInstance.composite(
-    croppeds.map((c) => ({ input: c.cropped, top: c.top, left: 0 }))
-  );
-  await decodedImageInstance.toFile(path);
 }
 
 export async function saveImage(
   imageBuffer: Buffer | ArrayBuffer,
   path: string
 ) {
+  if (!imageBuffer.byteLength) return;
   const buffer = Buffer.from(imageBuffer);
   await sharp(buffer).toFile(path);
 }
@@ -74,7 +79,7 @@ export async function saveImage(
  * @param level 压缩级别，范围 0-9，默认 9
  */
 export async function archiverImage(
-  directorys: { directory: string; destpath: string | false }[],
+  directorys: Directorys[],
   outputPath: string,
   password?: string,
   level: number = 9

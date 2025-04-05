@@ -10,21 +10,23 @@ import { JMAppAlbum } from "./JMAppAlbum";
 import { JMPhotoAbstract } from "../abstract/JMPhotoAbstract";
 import * as fs from "fs/promises";
 import { archiverImage, decodeImage, saveImage } from "../utils/Image";
-import { limitPromiseAll, requestWithRetry } from "../utils/Utils";
+import {
+  fileExistsAsync,
+  fileSizeAsync,
+  limitPromiseAll,
+  requestWithRetry,
+  requestWithUrlSwitch,
+  sanitizeFileName,
+} from "../utils/Utils";
 import { buildHtmlContent } from "../utils/Const";
+import { JMAlbumAbstract } from "../abstract/JMAlbumAbstract";
+import { Directorys } from "../types";
 
 export class JMAppClient extends JMClientAbstract {
   static APP_VERSION = "1.7.9";
   static APP_TOKEN_SECRET = "18comicAPP";
   static APP_TOKEN_SECRET_2 = "18comicAPPContent";
   static APP_DATA_SECRET = "185Hcomic3PAPP7R";
-
-  static JM_CLIENT_URL = [
-    "www.cdnmhwscc.vip",
-    "www.cdnblackmyth.club",
-    "www.cdnmhws.cc",
-    "www.cdnuc.vip",
-  ];
 
   static JM_CLIENT_IMAGE_DOMAIN = [
     "cdn-msp.jmapiproxy1.cc",
@@ -60,15 +62,13 @@ export class JMAppClient extends JMClientAbstract {
       formData,
       { headers, responseType: "json" }
     );
-    console.log(res);
-
     return this.decodeBase64<IJMUser>(res.data.data, timestamp);
   }
 
   public async getAlbumById(id: string): Promise<JMAppAlbum> {
     const timestamp = this.getTimeStamp();
     const { token, tokenparam } = this.getTokenAndTokenParam(timestamp);
-    const res = await requestWithRetry("https://www.cdnmhws.cc/album", "POST", {
+    const res = await requestWithUrlSwitch("/album", "POST", {
       params: { id },
       headers: { token, tokenparam },
       responseType: "json",
@@ -81,14 +81,11 @@ export class JMAppClient extends JMClientAbstract {
   public async getPhotoById(id: string): Promise<JMAppPhoto> {
     const timestamp = this.getTimeStamp();
     const { token, tokenparam } = this.getTokenAndTokenParam(timestamp);
-    const res = await requestWithRetry(
-      "https://www.cdnmhwscc.vip/chapter",
-      "POST",
-      { params: { id }, headers: { token, tokenparam }, responseType: "json" }
-    );
-    console.log(res);
-
-    logger.info(`IJMResponse: ${res}`);
+    const res = await requestWithUrlSwitch("/chapter", "POST", {
+      params: { id },
+      headers: { token, tokenparam },
+      responseType: "json",
+    });
     const photo_json = this.decodeBase64<IJMPhoto>(res.data, timestamp);
     const photo = JMAppPhoto.fromJson(photo_json);
     const images = photo.getImages();
@@ -97,82 +94,217 @@ export class JMAppClient extends JMClientAbstract {
     return photo;
   }
 
-  public async downloadByPhoto(photo: JMAppPhoto): Promise<void> {
-    const images = photo.getImages();
-    const id = photo.getId();
-    const path = `${this.root}/photo/${id}/origin`;
+  public async downloadByAlbum(album: JMAppAlbum): Promise<void> {
+    const series = album.getSeries();
+    // 本子ID
+    const id = album.getId();
+    // 本子存放路径
+    const path = `${this.root}/album/${id}`;
+    // 创建文件夹
     await fs.mkdir(path, { recursive: true });
-    await limitPromiseAll(
-      images.map((image) => async () => {
-        const url = `https://cdn-msp.jmapiproxy1.cc/media/photos/${id}/${image}`;
-        const res = await requestWithRetry<ArrayBuffer>(url, "GET", {
-          responseType: "arraybuffer",
-        });
-        await saveImage(res, `${path}/${image}`);
-      }),
-      5
-    );
+    // 多章节本子
+    if (series.length > 1) {
+      for (const s of series) {
+        const sId = s.id;
+        const photo = await this.getPhotoById(sId);
+        await this.downloadByPhoto(photo, "album", id);
+      }
+    }
+    // 单章节本子
+    else {
+      const photo = await this.getPhotoById(id);
+      await this.downloadByPhoto(photo, "album", id);
+    }
   }
 
-  public async decodeByPhoto(photo: JMPhotoAbstract): Promise<void> {
+  public async downloadByPhoto(
+    photo: JMAppPhoto,
+    type: "photo" | "album" = "photo",
+    albumId: string = ""
+  ): Promise<void> {
     const images = photo.getImages();
     const id = photo.getId();
-    photo.generateSplitNumbers(this.scramble_id);
-    const splitNumbers = photo.getSplitNumbers();
-    await fs.mkdir(`${this.root}/photo/${id}/decoded`, { recursive: true });
+    let path = `${this.root}/${type}/${id}/origin/${id}`;
+    logger.info(`开始下载 ${id}`);
+    if (type === "album") {
+      path = `${this.root}/${type}/${albumId}/origin/${id}`;
+    }
+    await fs.mkdir(path, { recursive: true });
     await limitPromiseAll(
-      images.map((image, index) => async () => {
-        const imagePath = `${this.root}/photo/${id}/origin/${image}`;
-        const decodedPath = `${this.root}/photo/${id}/decoded/${image}`;
-        const imageBuffer = await fs.readFile(imagePath);
-        await decodeImage(imageBuffer, splitNumbers[index], decodedPath);
-      }),
+      images
+        // 过滤已经下载过的图片
+        .filter((image) => {
+          const imagePath = `${path}/${image}`;
+          const fileExists = fileExistsAsync(imagePath);
+          const fileSize = fileSizeAsync(imagePath);
+          return !fileExists || !fileSize;
+        })
+        .map((image) => async () => {
+          const url = `https://cdn-msp.jmapiproxy1.cc/media/photos/${id}/${image}`;
+          const res = await requestWithRetry<ArrayBuffer>(url, "GET", {
+            responseType: "arraybuffer",
+          });
+          await saveImage(res, `${path}/${image}`);
+        }),
       5
     );
+    logger.info(`${id} 下载完成，开始解密图片`);
+    await this.decodeByPhoto(photo, type, albumId);
+  }
+
+  public async decodeByPhoto(
+    photo: JMPhotoAbstract,
+    type: "photo" | "album" = "photo",
+    albumId: string = ""
+  ): Promise<void> {
+    const images = photo.getImages();
+    const id = photo.getId();
+    const scramble_id = await this.requestScrambleId(id);
+    photo.generateSplitNumbers(scramble_id);
+    const splitNumbers = photo.getSplitNumbers();
+    console.log(splitNumbers);
+
+    let path = `${this.root}/${type}/${id}/origin`;
+    let decodedPath = `${this.root}/${type}/${id}/decoded`;
+    if (type === "album") {
+      path = `${this.root}/${type}/${albumId}/origin/${id}`;
+      decodedPath = `${this.root}/${type}/${albumId}/decoded/${id}`;
+    }
+    await fs.mkdir(path, { recursive: true });
+    await fs.mkdir(decodedPath, { recursive: true });
+    await limitPromiseAll(
+      images
+        // 过滤已经解密的图片
+        .filter((image) => {
+          const imagePath = `${decodedPath}/${image}`;
+          const fileExists = fileExistsAsync(imagePath);
+          const fileSize = fileSizeAsync(imagePath);
+          // logger.info(`${imagePath}`, `${fileExists}, ${fileSize}, ${!fileExists || !fileSize}`);
+          return !fileExists || !fileSize;
+        })
+        .map((image, index) => async () => {
+          const imagePath = `${path}/${image}`;
+          logger.info(`解密: ${imagePath}`);
+          const decodedImagePath = `${decodedPath}/${image}`;
+          const imageBuffer = await fs.readFile(imagePath);
+          await decodeImage(imageBuffer, splitNumbers[index], decodedImagePath);
+        }),
+      10
+    );
+    logger.info(`${id} 解密完成`);
+  }
+
+  public async albumToPdf(album: JMAlbumAbstract) {
+    const series = album.getSeries();
+    // 本子ID
+    const id = album.getId();
+    // 多章节本子
+    if (series.length > 1) {
+      for (const [i, s] of series.entries()) {
+        const photo = await this.getPhotoById(id);
+        await this.photoToPdf(
+          photo,
+          `${photo.getName()}_${i + 1}`,
+          "album",
+          id
+        );
+      }
+    }
+    // 单章节本子
+    else {
+      const photo = await this.getPhotoById(id);
+      await this.photoToPdf(photo, `${photo.getName()}`, "album", id);
+    }
   }
 
   public async photoToPdf(
-    photo: JMPhotoAbstract,
-    pdfPath: string
+    photo: JMAppPhoto,
+    pdfName: string,
+    type: "photo" | "album" = "photo",
+    albumId: string = ""
   ): Promise<void> {
     const images = photo.getImages();
     const id = photo.getId();
     // 打开一个新页面
     const page = await puppeteer.browser.newPage();
+    let path = `${this.root}/${type}/${id}`;
+    if (type === "album") {
+      path = `${this.root}/${type}/${albumId}`;
+    }
     const base64Images = await Promise.all(
       images.map(async (image) => {
-        const path = `${this.root}/photo/${id}/decoded/${image}`;
-        const buffer = await fs.readFile(path); // 读取文件为 Buffer
+        let imagePath = `${path}/decoded/${image}`;
+        if (type === "album") {
+          imagePath = `${path}/decoded/${id}/${image}`;
+        }
+        const buffer = await fs.readFile(imagePath); // 读取文件为 Buffer
         return `data:image/png;base64,${buffer.toString("base64")}`; // 转换为 base64
       })
     );
     const html = buildHtmlContent(base64Images);
     await page.setContent(html, { waitUntil: "load" });
+    await page.setViewport({
+      width: 1920,
+      height: 1080,
+    });
+    // 文件名合法化
+    pdfName = sanitizeFileName(pdfName);
     // 生成 PDF
     await page.pdf({
-      path: pdfPath,
-      format: "A4",
+      path: `${path}/${pdfName}.pdf`,
       printBackground: true,
+      scale: 0.75,
+      preferCSSPageSize: true,
     });
     // 关闭页面
     await page.close();
+    logger.info(`${pdfName}.pdf 生成完成`);
+  }
+
+  public async albumToZip(
+    album: JMAppAlbum,
+    password?: string,
+    level: number = 6
+  ): Promise<void> {
+    const id = album.getId();
+    const series = album.getSeries();
+    // 文件名合法化
+    const zipName = sanitizeFileName(album.getName());
+    const path = `${this.root}/album/${id}`;
+    const directorys: Directorys[] = [];
+    if (series.length > 1) {
+      for (const s of series) {
+        directorys.push({
+          directory: `${path}/decoded/${s.id}`,
+          destpath: `第${s.sort}章`,
+        });
+      }
+    }
+    // 单章节本子
+    else {
+      directorys.push({ directory: `${path}/decoded`, destpath: false });
+    }
+    await archiverImage(directorys, `${path}/${zipName}.zip`, password, level);
+    logger.info(`${zipName}.zip 生成完成`);
   }
 
   public async photoToZip(
     photo: JMPhotoAbstract,
-    zipPath: string,
+    zipName: string,
     password?: string,
     level: number = 6
   ): Promise<void> {
     const id = photo.getId();
-    const directory = `${this.root}/photo/${id}/decoded`;
+    // 文件名合法化
+    zipName = sanitizeFileName(zipName);
+    const path = `${this.root}/photo/${id}`;
     await archiverImage(
-      [{ directory, destpath: false }],
-      zipPath,
+      [{ directory: `${path}/decoded`, destpath: false }],
+      `${path}/${zipName}.zip`,
       password,
       level
     );
-    logger.info(`${zipPath} 生成完成`);
+    logger.info(`${zipName}.zip 生成完成`);
   }
 
   /**
@@ -188,19 +320,18 @@ export class JMAppClient extends JMClientAbstract {
    * 获取Scramble ID
    * @param id JM本子ID
    */
-  public async requestScrambleId(id: string) {
+  public async requestScrambleId(id: number) {
     const timestamp = this.getTimeStamp();
     const { token, tokenparam } = this.getTokenAndTokenParam(
       timestamp,
       JMAppClient.APP_TOKEN_SECRET_2
     );
-    const html = await requestWithRetry<string>(
-      "https://www.cdnmhws.cc/chapter_view_template",
+    const html = await requestWithUrlSwitch<string>(
+      "/chapter_view_template",
       "POST",
       { params: { id }, headers: { token, tokenparam }, responseType: "text" }
     );
-    this.scramble_id = parseInt(html.match(JM_SCRAMBLE_ID)[1]);
-    console.log(this.scramble_id);
+    return parseInt(html.match(JM_SCRAMBLE_ID)[1]);
   }
 
   /**
@@ -253,9 +384,7 @@ export class JMAppClient extends JMClientAbstract {
     // const paddingLength = dataAES[dataAES.length - 1];
     // const dataWithoutPadding = dataAES.slice(0, dataAES.length - paddingLength);
 
-    // console.log("移除填充后的数据:", dataWithoutPadding);
-    // console.log(dataWithoutPadding.toString("utf-8"));
-    // 5. 转换为 UTF-8 字符串并解析 JSON
+    // 转换为 UTF-8 字符串并解析 JSON
     return JSON.parse(decodedString);
   }
 }

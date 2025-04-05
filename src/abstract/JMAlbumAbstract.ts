@@ -1,6 +1,9 @@
 import { IJMAlbumSeries } from "../types/JMClient";
 
 export abstract class JMAlbumAbstract {
+  /**
+   * 本子ID
+   */
   private id: string;
   /**
    * 名称

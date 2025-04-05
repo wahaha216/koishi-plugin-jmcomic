@@ -28,3 +28,10 @@ export const buildHtmlContent = (base64Images: string[]) => `
   </body>
   </html>
 `;
+
+export const JM_CLIENT_URL_LIST = [
+  "www.cdnmhwscc.vip",
+  "www.cdnblackmyth.club",
+  "www.cdnmhws.cc",
+  "www.cdnuc.vip",
+];

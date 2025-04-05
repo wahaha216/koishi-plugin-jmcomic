@@ -375,10 +375,18 @@ export async function apply(ctx: Context, config: Config) {
   // });
 
   ctx.command("jm <jmId:string>").action(async ({ session }, jmId) => {
-    const jmClient = new JMAppClient(root);
-    // jmClient.login("liyen95079", 'xG_0(G5|*d<|"1(pM$Wz');
-    jmClient.requestScrambleId(jmId);
+    try {
+      const jmClient = new JMAppClient(root);
+      // jmClient.login("liyen95079", 'xG_0(G5|*d<|"1(pM$Wz');
+      const album = await jmClient.getAlbumById(jmId);
+      await jmClient.downloadByAlbum(album);
+      jmClient.albumToPdf(album);
+    } catch (error) {
+      session.send("已尝试所有可能，但JM坏掉了")
+      throw new Error(error)
+    }
   });
+
   ctx
     .command("jm.photo <photoId:string>")
     .alias("本子章节")

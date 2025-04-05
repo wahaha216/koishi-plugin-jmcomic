@@ -5,7 +5,6 @@ import { JMAlbumAbstract } from "./JMAlbumAbstract";
 
 export abstract class JMClientAbstract {
   protected root: string;
-  protected scramble_id: number;
 
   constructor(root: string) {
     this.root = root;
@@ -17,14 +16,6 @@ export abstract class JMClientAbstract {
 
   public getRoot(): string {
     return this.root;
-  }
-
-  public setScrambleId(scrambleId: number): void {
-    this.scramble_id = scrambleId;
-  }
-
-  public getScrambleId(): number {
-    return this.scramble_id;
   }
 
   /**
@@ -53,7 +44,7 @@ export abstract class JMClientAbstract {
    * 根据本子信息下载
    * @param album 本子
    */
-  // abstract downloadByAlbum(album: JMAlbumAbstract): Promise<void>;
+  abstract downloadByAlbum(album: JMAlbumAbstract): Promise<void>;
 
   /**
    * 根据章节信息下载
@@ -73,6 +64,12 @@ export abstract class JMClientAbstract {
    * @param photo 章节
    * @param zipPath 压缩包路径
    */
+  abstract albumToZip(
+    album: JMAlbumAbstract,
+    password?: string,
+    level?: number
+  ): Promise<void>;
+
   abstract photoToZip(
     photo: JMPhotoAbstract,
     zipPath: string,

@@ -35,3 +35,12 @@ export const JM_CLIENT_URL_LIST = [
   "www.cdnmhws.cc",
   "www.cdnuc.vip",
 ];
+
+export const JM_IMAGE_URL_LIST = [
+  "cdn-msp.jmapiproxy1.cc",
+  "cdn-msp.jmapiproxy2.cc",
+  "cdn-msp2.jmapiproxy2.cc",
+  "cdn-msp3.jmapiproxy2.cc",
+  "cdn-msp.jmapinodeudzn.net",
+  "cdn-msp3.jmapinodeudzn.net",
+];

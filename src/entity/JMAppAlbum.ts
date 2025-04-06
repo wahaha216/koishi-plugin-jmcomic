@@ -1,5 +1,6 @@
 import { JMAlbumAbstract } from "../abstract/JMAlbumAbstract";
 import { IJMAlbum, IJMAlbumRelated } from "../types/JMClient";
+import { JMAppPhoto } from "./JMAppPhoto";
 
 export class JMAppAlbum extends JMAlbumAbstract {
   private images: string[];
@@ -100,6 +101,10 @@ export class JMAppAlbum extends JMAlbumAbstract {
 
   public getPurchased(): string {
     return this.purchased;
+  }
+
+  public getPhotos(): JMAppPhoto[] {
+    return super.getPhotos() as JMAppPhoto[];
   }
 
   static fromJson(json: IJMAlbum) {

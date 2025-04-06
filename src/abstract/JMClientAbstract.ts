@@ -49,30 +49,61 @@ export abstract class JMClientAbstract {
   /**
    * 根据章节信息下载
    * @param photo 章节
+   * @param type 类型，章节或是本子
+   * @param albumId 类型为本子时，对应的本子ID
+   * @param single 类型为本子时，该本子是否是单章节
    */
-  abstract downloadByPhoto(photo: JMPhotoAbstract): Promise<void>;
+  abstract downloadByPhoto(
+    photo: JMPhotoAbstract,
+    type: "photo" | "album",
+    albumId: string,
+    single: boolean
+  ): Promise<void>;
 
   /**
-   * 章节转PDF
-   * @param photo 章节
-   * @param pdfPath PDF路径
+   * 本子 -> PDF
+   * @param album 本子信息
    */
-  abstract photoToPdf(photo: JMPhotoAbstract, pdfPath: string): Promise<void>;
+  abstract albumToPdf(album: JMAlbumAbstract): Promise<string | string[]>;
 
   /**
-   * 章节转压缩包
-   * @param photo 章节
-   * @param zipPath 压缩包路径
+   * 本子 -> 压缩包
+   * @param album 章节信息
+   * @param password 可选：密码
+   * @param level 可选：压缩等级
    */
   abstract albumToZip(
     album: JMAlbumAbstract,
     password?: string,
     level?: number
-  ): Promise<void>;
+  ): Promise<string>;
 
+  /**
+   * 章节 -> PDF
+   * @param photo 章节
+   * @param pdfName PDF路径
+   * @param type 类型，章节或是本子
+   * @param albumId 类型为本子时，对应的本子ID
+   * @param single 类型为本子时，该本子是否是单章节
+   */
+  abstract photoToPdf(
+    photo: JMPhotoAbstract,
+    pdfName: string,
+    type: "photo" | "album",
+    albumId: string,
+    single: boolean
+  ): Promise<string>;
+
+  /**
+   * 章节 -> ZIP
+   * @param photo 章节信息
+   * @param zipName zip名称
+   * @param password 可选，压缩包密码
+   * @param level 可选，压缩等级
+   */
   abstract photoToZip(
     photo: JMPhotoAbstract,
-    zipPath: string,
+    zipName: string,
     password?: string,
     level?: number
   ): Promise<void>;
@@ -80,8 +111,16 @@ export abstract class JMClientAbstract {
   /**
    * 解密章节图片
    * @param photo 章节
+   * @param type 类型，章节或是本子
+   * @param albumId 类型为本子时，对应的本子ID
+   * @param single 类型为本子时，该本子是否是单章节
    */
-  abstract decodeByPhoto(photo: JMPhotoAbstract): Promise<void>;
+  abstract decodeByPhoto(
+    photo: JMPhotoAbstract,
+    type: "photo" | "album",
+    albumId: string,
+    single: boolean
+  ): Promise<void>;
 
   /**
    * 使用MD5将字符串加密成十六进制

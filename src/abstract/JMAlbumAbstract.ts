@@ -1,4 +1,5 @@
 import { IJMAlbumSeries } from "../types/JMClient";
+import { JMPhotoAbstract } from "./JMPhotoAbstract";
 
 export abstract class JMAlbumAbstract {
   /**
@@ -41,6 +42,11 @@ export abstract class JMAlbumAbstract {
    * 观看次数
    */
   private total_views: string;
+
+  /**
+   * 章节信息
+   */
+  private photos: JMPhotoAbstract[];
 
   public setId(id: string): void {
     this.id = id;
@@ -120,5 +126,13 @@ export abstract class JMAlbumAbstract {
 
   public getTotalViews(): string {
     return this.total_views;
+  }
+
+  public setPhotos(photos: JMPhotoAbstract[]) {
+    this.photos = photos;
+  }
+
+  public getPhotos(): JMPhotoAbstract[] {
+    return this.photos;
   }
 }

@@ -4,6 +4,7 @@ import { JUMP_URL, URL_LOCATION } from "./Regexp";
 import { HTTP } from "koishi";
 import { IJMResponse } from "../types/JMClient";
 import { JM_CLIENT_URL_LIST } from "./Const";
+import path from "path";
 
 /**
  * 文件是否存在
@@ -167,4 +168,14 @@ export async function requestWithUrlSwitch<T = IJMResponse>(
   } else {
     return await requestWithRetry<T>(url, method, config);
   }
+}
+
+export function getFileNameAndExt(filePath: string): {
+  fileName: string;
+  ext: string;
+} {
+  const normalizedPath = path.normalize(filePath);
+  const fileName = path.basename(normalizedPath);
+  const ext = path.extname(normalizedPath).slice(1);
+  return { fileName, ext };
 }

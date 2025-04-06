@@ -106,7 +106,7 @@ export abstract class JMClientAbstract {
     zipName: string,
     password?: string,
     level?: number
-  ): Promise<void>;
+  ): Promise<string>;
 
   /**
    * 解密章节图片

@@ -136,7 +136,7 @@ export class JMAppClient extends JMClientAbstract {
     photo: JMAppPhoto,
     type: "photo" | "album" = "photo",
     albumId: string = "",
-    single: boolean
+    single: boolean = false
   ): Promise<void> {
     const images = photo.getImages();
     const id = photo.getId();
@@ -348,7 +348,7 @@ export class JMAppClient extends JMClientAbstract {
     zipName: string,
     password?: string,
     level: number = 6
-  ): Promise<void> {
+  ): Promise<string> {
     const id = photo.getId();
     // 文件名合法化
     zipName = sanitizeFileName(zipName);
@@ -360,6 +360,7 @@ export class JMAppClient extends JMClientAbstract {
       level
     );
     logger.info(`${zipName}.zip 生成完成`);
+    return `${path}/${zipName}.zip`;
   }
 
   /**

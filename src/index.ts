@@ -1,13 +1,8 @@
 import { Context, h, HTTP, Logger, Schema } from "koishi";
-import { Photo } from "./entity/Photo";
 import path from "path";
 import * as fs from "fs/promises";
-import { decodeImage, archiverImage, saveImage } from "./utils/Image";
 import Puppeteer from "koishi-plugin-puppeteer";
-import { Album } from "./entity/Album";
-import { buildHtmlContent } from "./utils/Const";
-import { fileExistsAsync, getDomainFromGithub } from "./utils/Utils";
-import { JM_ID } from "./utils/Regexp";
+import { getFileNameAndExt } from "./utils/Utils";
 import cron from "node-cron";
 import { JMAppClient } from "./entity/JMAppClient";
 
@@ -374,31 +369,151 @@ export async function apply(ctx: Context, config: Config) {
   //   if (!config.cache) fs.rmdir(path, { recursive: true });
   // });
 
-  ctx.command("jm <jmId:string>").action(async ({ session }, jmId) => {
-    try {
-      const jmClient = new JMAppClient(root);
-      // jmClient.login("liyen95079", 'xG_0(G5|*d<|"1(pM$Wz');
-      const album = await jmClient.getAlbumById(jmId);
-      await jmClient.downloadByAlbum(album);
-      jmClient.albumToPdf(album);
-    } catch (error) {
-      session.send("已尝试所有可能，但JM坏掉了")
-      throw new Error(error)
-    }
-  });
+  ctx
+    .command("jm.album <albumId:string>")
+    .alias("本子")
+    // .option("pdf", "-p")
+    // .option("zip", "-z")
+    // .option("password", "-pwd")
+    .action(async ({ session, options }, albumId) => {
+      const messageId = session.messageId;
+      if (!/^\d+$/.test(albumId)) {
+        await session.send([
+          h.quote(messageId),
+          h.text("输入的ID不合法，请检查"),
+        ]);
+        return;
+      }
+      try {
+        const jmClient = new JMAppClient(root);
+        // jmClient.login("liyen95079", 'xG_0(G5|*d<|"1(pM$Wz');
+        const album = await jmClient.getAlbumById(albumId);
+        await jmClient.downloadByAlbum(album);
+        let path: string | string[];
+        if (config.sendMethod === "zip") {
+          path = await jmClient.albumToZip(
+            album,
+            config.password,
+            config.level
+          );
+        } else {
+          path = await jmClient.albumToPdf(album);
+        }
+        // 返回的路径是字符串
+        if (typeof path === "string") {
+          const buffer = await fs.readFile(path);
+          const { fileName, ext } = getFileNameAndExt(path);
+          await session.send([
+            h.file(buffer, ext, { title: `${fileName} (${albumId}).${ext}` }),
+          ]);
+        }
+        // 返回的路径是字符串数组
+        else {
+          for (const p of path) {
+            const buffer = await fs.readFile(p);
+            const { fileName, ext } = getFileNameAndExt(p);
+            await session.send([
+              h.file(buffer, ext, { title: `${fileName} (${albumId}).${ext}` }),
+            ]);
+          }
+        }
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.message.includes("Could not connect to mysql")) {
+            await session.send([
+              h.quote(messageId),
+              h.text("已尝试所有可能，但是JM坏掉了"),
+            ]);
+          }
+        } else {
+          throw new Error(error);
+        }
+      }
+    });
 
   ctx
     .command("jm.photo <photoId:string>")
     .alias("本子章节")
     .action(async ({ session }, photoId) => {
-      const jmClient = new JMAppClient(root);
-      const photo = await jmClient.getPhotoById(photoId);
-      logger.info(`photo: ${photo}`);
-      const id = photo.getId();
-      await jmClient.photoToZip(
-        photo,
-        `${root}/photo/${id}/${photo.getName()}.zip`,
-        "110112113"
-      );
+      const messageId = session.messageId;
+      if (!/^\d+$/.test(photoId)) {
+        await session.send([
+          h.quote(messageId),
+          h.text("输入的ID不合法，请检查"),
+        ]);
+        return;
+      }
+      try {
+        const jmClient = new JMAppClient(root);
+        const photo = await jmClient.getPhotoById(photoId);
+        await jmClient.downloadByPhoto(photo);
+        const name = photo.getName();
+        let path: string;
+        if (config.sendMethod === "zip") {
+          path = await jmClient.photoToZip(
+            photo,
+            name,
+            config.password,
+            config.level
+          );
+        } else {
+          path = await jmClient.photoToPdf(photo, name);
+        }
+        const buffer = await fs.readFile(path);
+        const { fileName, ext } = getFileNameAndExt(path);
+        await session.send([
+          h.file(buffer, ext, { title: `${fileName} (${photoId}).${ext}` }),
+        ]);
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.message.includes("Could not connect to mysql")) {
+            await session.send([
+              h.quote(messageId),
+              h.text("已尝试所有可能，但是JM坏掉了"),
+            ]);
+          }
+        } else {
+          throw new Error(error);
+        }
+      }
+    });
+
+  ctx
+    .command("jm.album.info <albumId:string>")
+    .alias("本子信息")
+    .action(async ({ session, options }, albumId) => {
+      const messageId = session.messageId;
+      if (!/^\d+$/.test(albumId)) {
+        await session.send([
+          h.quote(messageId),
+          h.text("输入的ID不合法，请检查"),
+        ]);
+        return;
+      }
+      try {
+        const jmClient = new JMAppClient(root);
+        const album = await jmClient.getAlbumById(albumId);
+        await session.send([
+          h.quote(messageId),
+          h.text(`ID：${album.getId()}\n`),
+          h.text(`名称：${album.getName()}\n`),
+          h.text(`章节数：${album.getPhotos().length}\n`),
+          h.text(`作者：${album.getAuthors()?.join("、") ?? ""}\n`),
+          h.text(`登场人物：${album.getActors()?.join("、") ?? ""}\n`),
+          h.text(`点赞数：${album.getLikes()}\n`),
+          h.text(`观看数：${album.getTotalViews()}`),
+        ]);
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.message.includes("Could not connect to mysql")) {
+            await session.send([
+              h.quote(messageId),
+              h.text("已尝试所有可能，但是JM坏掉了"),
+            ]);
+          }
+        } else {
+          throw new Error(error);
+        }
+      }
     });
 }

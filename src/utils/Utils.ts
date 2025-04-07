@@ -1,10 +1,11 @@
-import fs from "fs";
+import { statSync, accessSync, constants } from "fs";
+import { readdir, stat, rmdir } from "fs/promises";
 import { http, logger, retryCount } from "..";
 import { JUMP_URL, URL_LOCATION } from "./Regexp";
 import { HTTP } from "koishi";
 import { IJMResponse } from "../types/JMClient";
 import { JM_CLIENT_URL_LIST } from "./Const";
-import path from "path";
+import { normalize, basename, extname, dirname } from "path";
 
 /**
  * 文件是否存在
@@ -13,7 +14,7 @@ import path from "path";
  */
 export function fileExistsAsync(path: string) {
   try {
-    fs.accessSync(path, fs.constants.F_OK); // 检查文件是否存在
+    accessSync(path, constants.F_OK); // 检查文件是否存在
     return true;
   } catch (err) {
     return false;
@@ -27,7 +28,7 @@ export function fileExistsAsync(path: string) {
  */
 export function fileSizeAsync(path: string) {
   try {
-    const stats = fs.statSync(path); // 获取文件信息
+    const stats = statSync(path); // 获取文件信息
     return stats.size; // 返回文件大小
   } catch (err) {
     return 0;
@@ -56,6 +57,10 @@ export function sanitizeFileName(fileName: string) {
   return fileName;
 }
 
+/**
+ * 从github获取最新的JM域名
+ * @returns 域名列表
+ */
 export async function getDomainFromGithub() {
   const url = "https://jmcmomic.github.io";
   const html = await http.get<string>(url);
@@ -72,6 +77,12 @@ export async function getDomainFromGithub() {
   return jumpList;
 }
 
+/**
+ * 限制Promise并发
+ * @param promises Promise方法列表
+ * @param limit 限制数量
+ * @returns Promise结果
+ */
 export async function limitPromiseAll<T>(
   promises: (() => Promise<T>)[],
   limit: number
@@ -103,6 +114,14 @@ export async function limitPromiseAll<T>(
   return results as T[];
 }
 
+/**
+ * 重试请求，直到遇到特定错误或者次数耗尽
+ * @param url 请求地址
+ * @param method 请求方法
+ * @param config 请求配置
+ * @param retryIndex 尝试次数
+ * @returns 请求结果
+ */
 export async function requestWithRetry<T = IJMResponse>(
   url: string,
   method: "GET" | "POST",
@@ -132,6 +151,14 @@ export async function requestWithRetry<T = IJMResponse>(
   }
 }
 
+/**
+ * 依次使用定义的地址尝试进行请求，遇到特定错误尝试切换下一个
+ * @param url 请求地址
+ * @param method 请求方法
+ * @param config 请求配置
+ * @param urlIndex 地址下标，默认从0开始尝试
+ * @returns 请求结果
+ */
 export async function requestWithUrlSwitch<T = IJMResponse>(
   url: string,
   method: "GET" | "POST",
@@ -170,12 +197,51 @@ export async function requestWithUrlSwitch<T = IJMResponse>(
   }
 }
 
-export function getFileNameAndExt(filePath: string): {
-  fileName: string;
-  ext: string;
-} {
-  const normalizedPath = path.normalize(filePath);
-  const fileName = path.basename(normalizedPath);
-  const ext = path.extname(normalizedPath).slice(1);
-  return { fileName, ext };
+/**
+ * 获取文件名和扩展名
+ * @param filePath 文件路径
+ * @returns 文件名和扩展名组成的对象 { fileName, ext }
+ */
+export function getFileInfo(filePath: string) {
+  // 通过 normalize 确保文件路径是标准化的，以防路径中存在冗余的部分（如多余的 / 或 \）
+  const normalizedPath = normalize(filePath);
+  // 使用 basename 获取文件名，basename 只返回文件的名称部分，忽略路径部分
+  const fileName = basename(normalizedPath);
+  // 使用 extname 获取文件的扩展名，extname 会返回以 . 开头的扩展名，所以使用 slice(1) 去掉点号
+  const ext = extname(normalizedPath).slice(1);
+  // 使用 dirname 获取文件路径（不包括文件名）
+  const dir = dirname(normalizedPath);
+  // 返回文件名和扩展名
+  return { fileName, ext, dir };
+}
+
+/**
+ * 删除路径下 days 之前的文件夹
+ * @param path 路径
+ * @param days 天数
+ */
+export async function deleteFewDaysAgoFolders(path: string, days: number) {
+  const dirEntries = await readdir(path, {
+    withFileTypes: true,
+  });
+  // 过滤出文件夹类型的条目
+  const subfolderNames = dirEntries
+    .filter((dirent) => dirent.isDirectory())
+    .map((dirent) => dirent.name);
+  // 循环判断所有文件夹
+  for (const folder of subfolderNames) {
+    // 获取文件夹状态信息
+    const s = await stat(`${path}/${folder}`);
+    // 提取创建时间
+    const creationTime = s.birthtime || s.ctime;
+    // 当前时间
+    const now = new Date();
+    // 计算时间差（毫秒）
+    const diffTime = Math.abs(now.getTime() - creationTime.getTime());
+    // 转换为天数并取整
+    const diffDays = Math.floor(diffTime / (1000 * 3600 * 24));
+    if (diffDays >= days) {
+      rmdir(`${path}/${folder}`, { recursive: true });
+    }
+  }
 }

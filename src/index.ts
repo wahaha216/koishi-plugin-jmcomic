@@ -1,9 +1,9 @@
 import { Context, h, HTTP, Logger, Schema } from "koishi";
-import path from "path";
-import * as fs from "fs/promises";
+import { join } from "path";
+import { readFile, rmdir } from "fs/promises";
 import Puppeteer from "koishi-plugin-puppeteer";
-import { getFileNameAndExt } from "./utils/Utils";
-import cron from "node-cron";
+import { deleteFewDaysAgoFolders, getFileInfo } from "./utils/Utils";
+import { schedule, validate } from "node-cron";
 import { JMAppClient } from "./entity/JMAppClient";
 
 export const name = "jmcomic";
@@ -83,35 +83,16 @@ export async function apply(ctx: Context, config: Config) {
 
   logger = ctx.logger("jmcomic");
 
-  const root = path.join(ctx.baseDir, "data", "jmcomic");
+  const root = join(ctx.baseDir, "data", "jmcomic");
 
-  if (cron.validate(config.cron)) {
-    cron.schedule(config.cron, async () => {
-      const root = path.join(ctx.baseDir, "data", "jmcomic", "album");
+  if (validate(config.cron)) {
+    schedule(config.cron, async () => {
+      const albumPath = join(ctx.baseDir, "data", "jmcomic", "album");
       // 读取目录内容，并获取文件/文件夹的详细信息
-      const dirEntries = await fs.readdir(root, {
-        withFileTypes: true,
-      });
-      // 过滤出文件夹类型的条目
-      const subfolderNames = dirEntries
-        .filter((dirent) => dirent.isDirectory())
-        .map((dirent) => dirent.name);
-      // 循环判断所有文件夹
-      for (const folder of subfolderNames) {
-        // 获取文件夹状态信息
-        const stat = await fs.stat(`${root}/${folder}`);
-        // 提取创建时间
-        const creationTime = stat.birthtime || stat.ctime;
-        // 当前时间
-        const now = new Date();
-        // 计算时间差（毫秒）
-        const diffTime = Math.abs(now.getTime() - creationTime.getTime());
-        // 转换为天数并取整
-        const diffDays = Math.floor(diffTime / (1000 * 3600 * 24));
-        if (diffDays >= config.keepDays) {
-          fs.rmdir(`${root}/${folder}`, { recursive: true });
-        }
-      }
+      await deleteFewDaysAgoFolders(albumPath, config.keepDays);
+      const photoPath = join(ctx.baseDir, "data", "jmcomic", "photo");
+      // 读取目录内容，并获取文件/文件夹的详细信息
+      await deleteFewDaysAgoFolders(photoPath, config.keepDays);
     });
   }
 
@@ -389,33 +370,39 @@ export async function apply(ctx: Context, config: Config) {
         // jmClient.login("liyen95079", 'xG_0(G5|*d<|"1(pM$Wz');
         const album = await jmClient.getAlbumById(albumId);
         await jmClient.downloadByAlbum(album);
-        let path: string | string[];
+        let filePath: string | string[];
         if (config.sendMethod === "zip") {
-          path = await jmClient.albumToZip(
+          filePath = await jmClient.albumToZip(
             album,
             config.password,
             config.level
           );
         } else {
-          path = await jmClient.albumToPdf(album);
+          filePath = await jmClient.albumToPdf(album);
         }
         // 返回的路径是字符串
-        if (typeof path === "string") {
-          const buffer = await fs.readFile(path);
-          const { fileName, ext } = getFileNameAndExt(path);
+        if (typeof filePath === "string") {
+          const buffer = await readFile(filePath);
+          const { fileName, ext, dir } = getFileInfo(filePath);
           await session.send([
             h.file(buffer, ext, { title: `${fileName} (${albumId}).${ext}` }),
           ]);
+          // 未开启缓存则直接删除
+          if (!config.cache) rmdir(dir);
         }
         // 返回的路径是字符串数组
         else {
-          for (const p of path) {
-            const buffer = await fs.readFile(p);
-            const { fileName, ext } = getFileNameAndExt(p);
+          let fileDir: string;
+          for (const p of filePath) {
+            const buffer = await readFile(p);
+            const { fileName, ext, dir } = getFileInfo(p);
             await session.send([
               h.file(buffer, ext, { title: `${fileName} (${albumId}).${ext}` }),
             ]);
+            fileDir = dir;
           }
+          // 未开启缓存则直接删除
+          if (!config.cache) rmdir(fileDir);
         }
       } catch (error) {
         if (error instanceof Error) {
@@ -448,22 +435,24 @@ export async function apply(ctx: Context, config: Config) {
         const photo = await jmClient.getPhotoById(photoId);
         await jmClient.downloadByPhoto(photo);
         const name = photo.getName();
-        let path: string;
+        let filePath: string;
         if (config.sendMethod === "zip") {
-          path = await jmClient.photoToZip(
+          filePath = await jmClient.photoToZip(
             photo,
             name,
             config.password,
             config.level
           );
         } else {
-          path = await jmClient.photoToPdf(photo, name);
+          filePath = await jmClient.photoToPdf(photo, name);
         }
-        const buffer = await fs.readFile(path);
-        const { fileName, ext } = getFileNameAndExt(path);
+        const buffer = await readFile(filePath);
+        const { fileName, ext, dir } = getFileInfo(filePath);
         await session.send([
           h.file(buffer, ext, { title: `${fileName} (${photoId}).${ext}` }),
         ]);
+          // 未开启缓存则直接删除
+        if (!config.cache) rmdir(dir);
       } catch (error) {
         if (error instanceof Error) {
           if (error.message.includes("Could not connect to mysql")) {

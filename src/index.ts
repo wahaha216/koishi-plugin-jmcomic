@@ -1,6 +1,6 @@
 import { Context, h, HTTP, Logger, Schema } from "koishi";
 import { join } from "path";
-import { readFile, rmdir } from "fs/promises";
+import { readFile, rm } from "fs/promises";
 import Puppeteer from "koishi-plugin-puppeteer";
 import { deleteFewDaysAgoFolders, getFileInfo } from "./utils/Utils";
 import { schedule, validate } from "node-cron";
@@ -388,7 +388,7 @@ export async function apply(ctx: Context, config: Config) {
             h.file(buffer, ext, { title: `${fileName} (${albumId}).${ext}` }),
           ]);
           // 未开启缓存则直接删除
-          if (!config.cache) rmdir(dir);
+          if (!config.cache) rm(dir, { recursive: true });
         }
         // 返回的路径是字符串数组
         else {
@@ -402,7 +402,7 @@ export async function apply(ctx: Context, config: Config) {
             fileDir = dir;
           }
           // 未开启缓存则直接删除
-          if (!config.cache) rmdir(fileDir);
+          if (!config.cache) rm(fileDir, { recursive: true });
         }
       } catch (error) {
         if (error instanceof Error) {
@@ -451,8 +451,8 @@ export async function apply(ctx: Context, config: Config) {
         await session.send([
           h.file(buffer, ext, { title: `${fileName} (${photoId}).${ext}` }),
         ]);
-          // 未开启缓存则直接删除
-        if (!config.cache) rmdir(dir);
+        // 未开启缓存则直接删除
+        if (!config.cache) rm(dir, { recursive: true });
       } catch (error) {
         if (error instanceof Error) {
           if (error.message.includes("Could not connect to mysql")) {

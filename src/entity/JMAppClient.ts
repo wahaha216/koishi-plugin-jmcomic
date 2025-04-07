@@ -273,6 +273,7 @@ export class JMAppClient extends JMClientAbstract {
   ): Promise<string> {
     const images = photo.getImages();
     const id = photo.getId();
+    logger.info(`开始生成PDF ${pdfName}.pdf`);
     // 打开一个新页面
     const page = await puppeteer.browser.newPage();
     let path = `${this.root}/${type}/${id}`;

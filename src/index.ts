@@ -48,6 +48,7 @@ export const Config: Schema<Config> = Schema.intersect([
   ]),
   Schema.union([
     Schema.object({
+      cache: Schema.const(true).required(),
       autoDelete: Schema.const(true).required(),
       cron: Schema.string().required().default("0 0 * * *"),
       deleteInStart: Schema.boolean().default(false),

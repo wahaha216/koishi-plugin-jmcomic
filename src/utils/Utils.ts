@@ -4,7 +4,7 @@ import { http, logger, retryCount } from "..";
 import { JUMP_URL, URL_LOCATION } from "./Regexp";
 import { HTTP } from "koishi";
 import { IJMResponse } from "../types/JMClient";
-import { JM_CLIENT_URL_LIST } from "./Const";
+import { JM_CLIENT_URL_LIST, JM_IMAGE_URL_LIST } from "./Const";
 import { normalize, basename, extname, dirname } from "path";
 
 /**
@@ -125,7 +125,7 @@ export async function limitPromiseAll<T>(
 export async function requestWithRetry<T = IJMResponse>(
   url: string,
   method: "GET" | "POST",
-  config: HTTP.RequestConfig,
+  config: HTTP.RequestConfig = {},
   retryIndex: number = 0
 ) {
   try {
@@ -162,38 +162,43 @@ export async function requestWithRetry<T = IJMResponse>(
 export async function requestWithUrlSwitch<T = IJMResponse>(
   url: string,
   method: "GET" | "POST",
-  config: HTTP.RequestConfig,
+  config: HTTP.RequestConfig = {},
+  type: "IMAGE" | "CLIENT" = "CLIENT",
   urlIndex: number = 0
 ) {
-  logger.info(`请求地址: ${url}`);
-  const urlCount = JM_CLIENT_URL_LIST.length;
+  const list = type === "CLIENT" ? JM_CLIENT_URL_LIST : JM_IMAGE_URL_LIST;
+  const urlCount = list.length;
   const url_bak = url;
   if (url.startsWith("/")) {
-    url = `https://${JM_CLIENT_URL_LIST[urlIndex]}${url}`;
-    try {
-      if (urlIndex < urlCount) {
-        return await requestWithRetry<T>(url, method, config);
-      } else {
-        throw new Error("所有域名请求失败");
+    url = `https://${list[urlIndex]}${url}`;
+  }
+  try {
+    if (urlIndex < urlCount) {
+      const res = await requestWithRetry<T>(url, method, config);
+      if (res instanceof ArrayBuffer && res.byteLength === 0) {
+        throw new Error("Empty Buffer");
       }
-    } catch (error) {
-      const isError = error instanceof Error;
-      const isMysqlError =
-        isError && error.message.includes("Could not connect to mysql");
-
-      if (isMysqlError) {
-        logger.info(`请求失败，尝试切换域名... ${urlIndex + 1}/${urlCount}`);
-        return await requestWithUrlSwitch<T>(
-          url_bak,
-          method,
-          config,
-          urlIndex + 1
-        );
-      }
-      throw new Error(error);
+      return res;
+    } else {
+      throw new Error("所有域名请求失败");
     }
-  } else {
-    return await requestWithRetry<T>(url, method, config);
+  } catch (error) {
+    const isError = error instanceof Error;
+    const isMysqlError =
+      isError && error.message.includes("Could not connect to mysql");
+    const isEmptyBuffer = isError && error.message === "Empty Buffer";
+
+    if (isMysqlError || isEmptyBuffer) {
+      logger.info(`请求失败，尝试切换域名... ${urlIndex + 1}/${urlCount}`);
+      return await requestWithUrlSwitch<T>(
+        url_bak,
+        method,
+        config,
+        type,
+        urlIndex + 1
+      );
+    }
+    throw new Error(error);
   }
 }
 

@@ -13,8 +13,8 @@ _config:
     url: JM domain name
     sendMethod: Send method
     retryCount: Retry limit
-  - password: Compressed package password
-    level: Compression level, 0~9, 0 is only stores
+    password: Password, leave blank without encryption
+  - level: Compression level, 0~9, 0 is only stores
   - $desc: Cache settings
     cache: Cache files
   - autoDelete: Automatically delete cache

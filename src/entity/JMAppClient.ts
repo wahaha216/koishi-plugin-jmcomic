@@ -1,25 +1,25 @@
-import { logger, puppeteer } from "..";
-import crypto from "crypto";
+import { http, logger } from "..";
+import { createHash, createDecipheriv } from "crypto";
 import FormData from "form-data";
-import axios from "axios";
 import { IJMAlbum, IJMUser, IJMPhoto, IJMResponse } from "../types/JMClient";
 import { JM_SCRAMBLE_ID } from "../utils/Regexp";
 import { JMClientAbstract } from "../abstract/JMClientAbstract";
 import { JMAppPhoto } from "./JMAppPhoto";
 import { JMAppAlbum } from "./JMAppAlbum";
 import { JMPhotoAbstract } from "../abstract/JMPhotoAbstract";
-import * as fs from "fs/promises";
+import { readFile, mkdir, rm } from "fs/promises";
 import { archiverImage, decodeImage, saveImage } from "../utils/Image";
 import {
   fileExistsAsync,
   fileSizeAsync,
   limitPromiseAll,
-  requestWithRetry,
   requestWithUrlSwitch,
   sanitizeFileName,
 } from "../utils/Utils";
-import { buildHtmlContent } from "../utils/Const";
 import { Directorys } from "../types";
+import { join } from "path";
+import sharp from "sharp";
+import { Recipe } from "muhammara";
 
 export class JMAppClient extends JMClientAbstract {
   static APP_VERSION = "1.7.9";
@@ -27,21 +27,16 @@ export class JMAppClient extends JMClientAbstract {
   static APP_TOKEN_SECRET_2 = "18comicAPPContent";
   static APP_DATA_SECRET = "185Hcomic3PAPP7R";
 
-  static JM_CLIENT_IMAGE_DOMAIN = [
-    "cdn-msp.jmapiproxy1.cc",
-    "cdn-msp.jmapiproxy2.cc",
-    "cdn-msp2.jmapiproxy2.cc",
-    "cdn-msp3.jmapiproxy2.cc",
-    "cdn-msp.jmapinodeudzn.net",
-    "cdn-msp3.jmapinodeudzn.net",
-  ];
-
   constructor(root: string) {
     super(root);
   }
 
-  // Could not connect to mysql! Please check your database settings!
-
+  /**
+   * 登录，未完成
+   * @param username 用户名
+   * @param password 密码
+   * @returns 用户信息
+   */
   async login(username: string, password: string) {
     const timestamp = this.getTimeStamp();
     const { token, tokenparam } = this.getTokenAndTokenParam(timestamp);
@@ -56,12 +51,12 @@ export class JMAppClient extends JMClientAbstract {
     formData.append("username", username);
     formData.append("password", password);
 
-    const res = await axios.post<IJMResponse>(
+    const res = await http.post<IJMResponse>(
       "https://www.cdnmhws.cc/login",
       formData,
       { headers, responseType: "json" }
     );
-    return this.decodeBase64<IJMUser>(res.data.data, timestamp);
+    return this.decodeBase64<IJMUser>(res.data, timestamp);
   }
 
   public async getAlbumById(id: string): Promise<JMAppAlbum> {
@@ -111,7 +106,7 @@ export class JMAppClient extends JMClientAbstract {
     // 本子存放路径
     const path = `${this.root}/album/${id}`;
     // 创建文件夹
-    await fs.mkdir(path, { recursive: true });
+    await mkdir(path, { recursive: true });
     // const series = album.getSeries();
     // 多章节本子
     // if (series.length > 1) {
@@ -141,7 +136,9 @@ export class JMAppClient extends JMClientAbstract {
     const images = photo.getImages();
     const id = photo.getId();
     let path = `${this.root}/${type}/${id}/origin`;
-    logger.info(`开始下载 ${id}`);
+    logger.info(
+      `开始下载: ${id}, 是否子章节: ${albumId ? "是, " + albumId : "否"}`
+    );
     if (type === "album") {
       if (single) {
         path = `${this.root}/${type}/${albumId}/origin`;
@@ -149,7 +146,7 @@ export class JMAppClient extends JMClientAbstract {
         path = `${this.root}/${type}/${albumId}/origin/${id}`;
       }
     }
-    await fs.mkdir(path, { recursive: true });
+    await mkdir(path, { recursive: true });
     await limitPromiseAll(
       images
         // 过滤已经下载过的图片
@@ -160,10 +157,13 @@ export class JMAppClient extends JMClientAbstract {
           return !fileExists || !fileSize;
         })
         .map((image) => async () => {
-          const url = `https://cdn-msp.jmapiproxy1.cc/media/photos/${id}/${image}`;
-          const res = await requestWithRetry<ArrayBuffer>(url, "GET", {
-            responseType: "arraybuffer",
-          });
+          const url = `/media/photos/${id}/${image}`;
+          const res = await requestWithUrlSwitch<ArrayBuffer>(
+            url,
+            "GET",
+            { responseType: "arraybuffer" },
+            "IMAGE"
+          );
           await saveImage(res, `${path}/${image}`);
         }),
       5
@@ -190,8 +190,8 @@ export class JMAppClient extends JMClientAbstract {
       path = `${this.root}/${type}/${albumId}/origin/${id}`;
       decodedPath = `${this.root}/${type}/${albumId}/decoded/${id}`;
     }
-    await fs.mkdir(path, { recursive: true });
-    await fs.mkdir(decodedPath, { recursive: true });
+    await mkdir(path, { recursive: true });
+    await mkdir(decodedPath, { recursive: true });
     await limitPromiseAll(
       images
         // 过滤已经解密的图片
@@ -206,7 +206,7 @@ export class JMAppClient extends JMClientAbstract {
           const imagePath = `${path}/${image}`;
           logger.info(`解密: ${imagePath}`);
           const decodedImagePath = `${decodedPath}/${image}`;
-          const imageBuffer = await fs.readFile(imagePath);
+          const imageBuffer = await readFile(imagePath);
           await decodeImage(imageBuffer, splitNumbers[index], decodedImagePath);
         }),
       10
@@ -214,27 +214,12 @@ export class JMAppClient extends JMClientAbstract {
     logger.info(`${id} 解密完成`);
   }
 
-  public async albumToPdf(album: JMAppAlbum): Promise<string | string[]> {
+  public async albumToPdf(
+    album: JMAppAlbum,
+    password?: string
+  ): Promise<string | string[]> {
     // 本子ID
     const id = album.getId();
-    // const series = album.getSeries();
-    // // 多章节本子
-    // if (series.length > 1) {
-    //   for (const [i, s] of series.entries()) {
-    //     const photo = await this.getPhotoById(id);
-    //     await this.photoToPdf(
-    //       photo,
-    //       `${photo.getName()}_${i + 1}`,
-    //       "album",
-    //       id
-    //     );
-    //   }
-    // }
-    // // 单章节本子
-    // else {
-    //   const photo = await this.getPhotoById(id);
-    //   await this.photoToPdf(photo, `${photo.getName()}`, "album", id);
-    // }
     const photos = album.getPhotos();
     // 单章节
     if (photos.length === 1) {
@@ -244,7 +229,8 @@ export class JMAppClient extends JMClientAbstract {
         `${photo.getName()}`,
         "album",
         id,
-        true
+        true,
+        password
       );
     }
     // 多章节
@@ -256,7 +242,8 @@ export class JMAppClient extends JMClientAbstract {
           `${photo.getName()}_${i + 1}`,
           "album",
           id,
-          false
+          false,
+          password
         );
         paths.push(path);
       }
@@ -269,50 +256,77 @@ export class JMAppClient extends JMClientAbstract {
     pdfName: string,
     type: "photo" | "album" = "photo",
     albumId: string = "",
-    single: boolean = false
+    single: boolean = false,
+    password?: string
   ): Promise<string> {
     const images = photo.getImages();
     const id = photo.getId();
     logger.info(`开始生成PDF ${pdfName}.pdf`);
-    // 打开一个新页面
-    const page = await puppeteer.browser.newPage();
-    let path = `${this.root}/${type}/${id}`;
-    if (type === "album") {
-      path = `${this.root}/${type}/${albumId}`;
-    }
-    const base64Images = await Promise.all(
-      images.map(async (image) => {
-        let imagePath = `${path}/decoded/${image}`;
-        if (type === "album") {
-          if (single) {
-            imagePath = `${path}/decoded/${image}`;
-          } else {
-            imagePath = `${path}/decoded/${id}/${image}`;
-          }
-        }
-        const buffer = await fs.readFile(imagePath); // 读取文件为 Buffer
-        return `data:image/png;base64,${buffer.toString("base64")}`; // 转换为 base64
-      })
-    );
-    const html = buildHtmlContent(base64Images);
-    await page.setContent(html, { waitUntil: "load" });
-    await page.setViewport({
-      width: 1920,
-      height: 1080,
-    });
-    // 文件名合法化
     pdfName = sanitizeFileName(pdfName);
-    // 生成 PDF
-    await page.pdf({
-      path: `${path}/${pdfName}.pdf`,
-      printBackground: true,
-      scale: 0.75,
-      preferCSSPageSize: true,
-    });
-    // 关闭页面
-    await page.close();
-    logger.info(`${pdfName}.pdf 生成完成`);
-    return `${path}/${pdfName}.pdf`;
+
+    let path = join(this.root, type, `${id}`);
+    if (type === "album") {
+      path = join(this.root, type, `${albumId}`);
+    }
+
+    const pdfPath = join(path, `${pdfName}.pdf`);
+    let pdfDoc: Recipe;
+    // pdf实例
+    try {
+      pdfDoc = new Recipe("new", pdfPath, {
+        version: 1.6,
+      });
+    } catch (error) {
+      throw new Error(error);
+    }
+
+    // 临时文件夹
+    const tempPath = join(path, `temp_${id}`);
+    await mkdir(tempPath);
+
+    // 循环按顺序添加图片
+    for (const image of images) {
+      let imagePath = join(path, "decoded", image);
+      if (type === "album" && !single) {
+        imagePath = join(path, "decoded", `${id}`, image);
+      }
+      // webp 会导致报错，转成jpg
+      const buffer = await readFile(imagePath);
+
+      // 替换文件扩展名
+      const jpgName = image.replace(".webp", ".jpg");
+      // 完整名称
+      const jpgPath = join(tempPath, jpgName);
+      // 转换成jpg
+      const sharpInstance = sharp(buffer);
+      await sharpInstance.jpeg().toFile(jpgPath);
+
+      const metadata = await sharpInstance.metadata();
+      pdfDoc
+        .createPage(metadata.width, metadata.height)
+        .image(jpgPath, 0, 0)
+        .endPage();
+    }
+
+    // 判断是否需要加密
+    if (password) {
+      pdfDoc.encrypt({
+        userPassword: password,
+        ownerPassword: password,
+        userProtectionFlag: 4,
+      });
+    }
+    try {
+      pdfDoc.endPDF(() => {
+        logger.info(`${pdfName}.pdf 生成完成`);
+      });
+    } catch (error) {
+      throw new Error(error);
+    } finally {
+      await rm(tempPath, { recursive: true });
+    }
+
+    return pdfPath;
   }
 
   public async albumToZip(
@@ -404,7 +418,7 @@ export class JMAppClient extends JMClientAbstract {
     version: string = JMAppClient.APP_VERSION
   ) {
     const key = `${timestamp}${secret}`;
-    const token = crypto.createHash("md5").update(key).digest("hex");
+    const token = createHash("md5").update(key).digest("hex");
     const tokenparam = `${timestamp},${version}`;
     return { token, tokenparam };
   }
@@ -429,7 +443,7 @@ export class JMAppClient extends JMClientAbstract {
     // 32位key
     const key = Buffer.from(md5);
     // 解密
-    const decipher = crypto.createDecipheriv("aes-256-ecb", key, null);
+    const decipher = createDecipheriv("aes-256-ecb", key, null);
     // decipher.setAutoPadding(false); // 禁用自动填充处理
     let dataAES = decipher.update(dataB64);
     // 拼接全部

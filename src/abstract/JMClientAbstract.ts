@@ -63,8 +63,12 @@ export abstract class JMClientAbstract {
   /**
    * 本子 -> PDF
    * @param album 本子信息
+   * @param password 可选：密码
    */
-  abstract albumToPdf(album: JMAlbumAbstract): Promise<string | string[]>;
+  abstract albumToPdf(
+    album: JMAlbumAbstract,
+    password?: string
+  ): Promise<string | string[]>;
 
   /**
    * 本子 -> 压缩包
@@ -85,13 +89,15 @@ export abstract class JMClientAbstract {
    * @param type 类型，章节或是本子
    * @param albumId 类型为本子时，对应的本子ID
    * @param single 类型为本子时，该本子是否是单章节
+   * @param password 可选：密码
    */
   abstract photoToPdf(
     photo: JMPhotoAbstract,
     pdfName: string,
     type: "photo" | "album",
     albumId: string,
-    single: boolean
+    single: boolean,
+    password?: string
   ): Promise<string>;
 
   /**

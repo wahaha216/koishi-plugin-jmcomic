@@ -27,11 +27,11 @@ export const Config: Schema<Config> = Schema.intersect([
     url: Schema.string().required().default("18comic-mygo.vip"),
     retryCount: Schema.number().min(1).max(5).default(5),
     sendMethod: Schema.union(["zip", "pdf"]).default("pdf"),
+    password: Schema.string(),
   }),
   Schema.union([
     Schema.object({
       sendMethod: Schema.const("zip").required(),
-      password: Schema.string(),
       level: Schema.number().min(0).max(9).default(6).role("slider"),
     }),
     Schema.object({}),
@@ -65,17 +65,15 @@ export const Config: Schema<Config> = Schema.intersect([
 });
 
 export const inject = {
-  required: ["puppeteer", "http"],
+  required: ["http"],
 };
 
 export let http: HTTP;
 export let logger: Logger;
-export let puppeteer: Puppeteer;
 export let retryCount: number;
 
 export async function apply(ctx: Context, config: Config) {
   http = ctx.http;
-  puppeteer = ctx.puppeteer;
   retryCount = config.retryCount;
 
   // i18n
@@ -379,7 +377,7 @@ export async function apply(ctx: Context, config: Config) {
             config.level
           );
         } else {
-          filePath = await jmClient.albumToPdf(album);
+          filePath = await jmClient.albumToPdf(album, config.password);
         }
         // 返回的路径是字符串
         if (typeof filePath === "string") {

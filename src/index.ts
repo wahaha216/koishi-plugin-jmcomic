@@ -49,7 +49,7 @@ export const Config: Schema<Config> = Schema.intersect([
     Schema.object({
       cache: Schema.const(true).required(),
       autoDelete: Schema.const(true).required(),
-      cron: Schema.string().required().default("0 0 * * *"),
+      cron: Schema.string().default("0 0 * * *"),
       deleteInStart: Schema.boolean().default(false),
       keepDays: Schema.number().min(1).default(7),
     }),
@@ -85,6 +85,8 @@ export async function apply(ctx: Context, config: Config) {
 
   const root = join(ctx.baseDir, "data", "jmcomic");
 
+  console.log(config);
+
   const scheduleFn = async () => {
     const albumPath = join(ctx.baseDir, "data", "jmcomic", "album");
     await deleteFewDaysAgoFolders(albumPath, config.keepDays);
@@ -93,6 +95,7 @@ export async function apply(ctx: Context, config: Config) {
   };
 
   // 如果输入的cron合法，则开始执行
+  if (debug) logger.info(`cron: ${config.cron}`);
   if (validate(config.cron)) {
     schedule(config.cron, scheduleFn);
   } else {

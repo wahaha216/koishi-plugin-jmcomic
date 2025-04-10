@@ -1,4 +1,4 @@
-import { http, logger } from "..";
+import { debug, http, logger } from "..";
 import { createHash, createDecipheriv } from "crypto";
 import FormData from "form-data";
 import { IJMAlbum, IJMUser, IJMPhoto, IJMResponse } from "../types/JMClient";
@@ -60,6 +60,7 @@ export class JMAppClient extends JMClientAbstract {
   }
 
   public async getAlbumById(id: string): Promise<JMAppAlbum> {
+    if (debug) logger.info(`获取本子(${id})信息`);
     const timestamp = this.getTimeStamp();
     const { token, tokenparam } = this.getTokenAndTokenParam(timestamp);
     const res = await requestWithUrlSwitch("/album", "POST", {
@@ -85,6 +86,7 @@ export class JMAppClient extends JMClientAbstract {
   }
 
   public async getPhotoById(id: string): Promise<JMAppPhoto> {
+    if (debug) logger.info(`获取章节(${id})信息`);
     const timestamp = this.getTimeStamp();
     const { token, tokenparam } = this.getTokenAndTokenParam(timestamp);
     const res = await requestWithUrlSwitch("/chapter", "POST", {
@@ -107,20 +109,7 @@ export class JMAppClient extends JMClientAbstract {
     const path = `${this.root}/album/${id}`;
     // 创建文件夹
     await mkdir(path, { recursive: true });
-    // const series = album.getSeries();
-    // 多章节本子
-    // if (series.length > 1) {
-    //   for (const s of series) {
-    //     const sId = s.id;
-    //     const photo = await this.getPhotoById(sId);
-    //     await this.downloadByPhoto(photo, "album", id);
-    //   }
-    // }
-    // // 单章节本子
-    // else {
-    //   const photo = await this.getPhotoById(id);
-    //   await this.downloadByPhoto(photo, "album", id);
-    // }
+
     const photos: JMAppPhoto[] = album.getPhotos();
     for (const photo of photos) {
       await this.downloadByPhoto(photo, "album", id, photos.length === 1);
@@ -136,9 +125,12 @@ export class JMAppClient extends JMClientAbstract {
     const images = photo.getImages();
     const id = photo.getId();
     let path = `${this.root}/${type}/${id}/origin`;
-    logger.info(
-      `开始下载: ${id}, 是否子章节: ${albumId ? "是, " + albumId : "否"}`
-    );
+    if (debug) {
+      logger.info(`开始下载: ${id}`);
+      logger.info(`单章节: ${single ? "是" : "否"}`);
+      logger.info(`子章节: ${albumId ? "是" : "否"}`);
+      logger.info(`本子ID：${albumId}`);
+    }
     if (type === "album") {
       if (single) {
         path = `${this.root}/${type}/${albumId}/origin`;
@@ -146,6 +138,7 @@ export class JMAppClient extends JMClientAbstract {
         path = `${this.root}/${type}/${albumId}/origin/${id}`;
       }
     }
+    if (debug) logger.info(`存储目录：${path}`);
     await mkdir(path, { recursive: true });
     await limitPromiseAll(
       images
@@ -158,6 +151,8 @@ export class JMAppClient extends JMClientAbstract {
         })
         .map((image) => async () => {
           const url = `/media/photos/${id}/${image}`;
+          if (debug) logger.info(`下载图片：${url}`);
+
           const res = await requestWithUrlSwitch<ArrayBuffer>(
             url,
             "GET",
@@ -168,7 +163,7 @@ export class JMAppClient extends JMClientAbstract {
         }),
       5
     );
-    logger.info(`${id} 下载完成，开始解密图片`);
+    if (debug) logger.info(`${id} 下载完成，开始解密图片`);
     await this.decodeByPhoto(photo, type, albumId, single);
   }
 
@@ -199,12 +194,11 @@ export class JMAppClient extends JMClientAbstract {
           const imagePath = `${decodedPath}/${image}`;
           const fileExists = fileExistsAsync(imagePath);
           const fileSize = fileSizeAsync(imagePath);
-          // logger.info(`${imagePath}`, `${fileExists}, ${fileSize}, ${!fileExists || !fileSize}`);
           return !fileExists || !fileSize;
         })
         .map((image, index) => async () => {
           const imagePath = `${path}/${image}`;
-          logger.info(`解密: ${imagePath}`);
+          if (debug) logger.info(`解密图片：${imagePath}`);
           const decodedImagePath = `${decodedPath}/${image}`;
           const imageBuffer = await readFile(imagePath);
           await decodeImage(imageBuffer, splitNumbers[index], decodedImagePath);
@@ -261,7 +255,7 @@ export class JMAppClient extends JMClientAbstract {
   ): Promise<string> {
     const images = photo.getImages();
     const id = photo.getId();
-    logger.info(`开始生成PDF ${pdfName}.pdf`);
+    if (debug) logger.info(`开始生成PDF ${pdfName}.pdf`);
     pdfName = sanitizeFileName(pdfName);
 
     let path = join(this.root, type, `${id}`);
@@ -318,7 +312,7 @@ export class JMAppClient extends JMClientAbstract {
     }
     try {
       pdfDoc.endPDF(() => {
-        logger.info(`${pdfName}.pdf 生成完成`);
+        if (debug) logger.info(`PDF ${pdfName}.pdf 生成完成`);
       });
     } catch (error) {
       throw new Error(error);
@@ -354,7 +348,7 @@ export class JMAppClient extends JMClientAbstract {
       directorys.push({ directory: `${path}/decoded`, destpath: false });
     }
     await archiverImage(directorys, `${path}/${zipName}.zip`, password, level);
-    logger.info(`${zipName}.zip 生成完成`);
+    if (debug) logger.info(`ZIP ${zipName}.zip 生成完成`);
     return `${path}/${zipName}.zip`;
   }
 
@@ -374,7 +368,7 @@ export class JMAppClient extends JMClientAbstract {
       password,
       level
     );
-    logger.info(`${zipName}.zip 生成完成`);
+    if (debug) logger.info(`ZIP ${zipName}.zip 生成完成`);
     return `${path}/${zipName}.zip`;
   }
 

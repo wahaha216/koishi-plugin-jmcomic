@@ -4,7 +4,7 @@ export const JM_ID = /^(jm)?\d+$/i;
 
 // Photo
 export const JM_PHOTO_NAME_ID = /id="album_photo_(\d+).webp"/g;
-export const JM_PHOTO_URL = /data-original="(\S+)"\s+id="(\S+)"/g;
+export const JM_PHOTO_URL = /data-original="(\S+)"\s+id="album_photo_(\S+)"/g;
 export const JM_PHOTO_ID =
   /<meta property="og:url" content=".*?\/photo\/(\d+)\/?.*?">/;
 

@@ -5,48 +5,48 @@ export abstract class JMAlbumAbstract {
   /**
    * 本子ID
    */
-  private id: string;
+  protected id: string;
   /**
    * 名称
    */
-  private name: string;
+  protected name: string;
   /**
    * 章节列表
    */
-  private series: IJMAlbumSeries[] = [];
+  protected series: IJMAlbumSeries[] = [];
   /**
    * 作品
    */
-  private works: string[];
+  protected works: string[];
   /**
    * 登场人物
    */
-  private actors: string[];
+  protected actors: string[];
   /**
    * 标签
    */
-  private tags: string[];
+  protected tags: string[];
   /**
    * 作者
    */
-  private authors: string[];
+  protected authors: string[];
   /**
    * 描述
    */
-  private description: string;
+  protected description: string;
   /**
    * 点赞数
    */
-  private likes: string;
+  protected likes: string;
   /**
    * 观看次数
    */
-  private total_views: string;
+  protected total_views: string;
 
   /**
    * 章节信息
    */
-  private photos: JMPhotoAbstract[];
+  protected photos: JMPhotoAbstract[];
 
   public setId(id: string): void {
     this.id = id;

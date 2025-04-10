@@ -1,26 +1,18 @@
 import crypto from "crypto";
 import * as regexps from "../utils/Regexp";
+import { JMPhotoAbstract } from "../abstract/JMPhotoAbstract";
 
-export class Photo {
+export class JMHtmlPhoto extends JMPhotoAbstract {
   static SCRAMBLE_268850 = 268850;
   static SCRAMBLE_421926 = 421926;
 
-  /**
-   * JMComic ID
-   */
-  private id: number;
   private scramble_id: number;
-  /**
-   * 图片名称列表
-   * @type {string[]} 图片名称列表
-   * @description 例如 ["00001", "00002", ...]
-   */
-  private photo_names: string[];
   // private photo_html: string;
   private photo_ids: string[];
   private photo_urls: string[];
 
   constructor(html: string) {
+    super();
     // this.photo_html = html;
     this.id = parseInt(html.match(regexps.JM_PHOTO_ID)[1]);
     const scramble_id = parseInt(html.match(regexps.JM_SCRAMBLE_ID)[1]);
@@ -33,7 +25,7 @@ export class Photo {
 
     const matchs_url_name = Array.from(html.matchAll(regexps.JM_PHOTO_URL));
     this.photo_urls = matchs_url_name.map((m) => m[1]);
-    this.photo_names = matchs_url_name.map((m) => m[2]);
+    this.image_names = matchs_url_name.map((m) => m[2]);
   }
 
   /**
@@ -49,13 +41,13 @@ export class Photo {
         return 0;
       }
       // 如果 id 小于 SCRAMBLE_268850，则返回分割数为 10
-      else if (this.id < Photo.SCRAMBLE_268850) {
+      else if (this.id < JMHtmlPhoto.SCRAMBLE_268850) {
         return 10;
       }
       // 根据 id 的范围动态计算分割数
       else {
         // 如果 id 小于 SCRAMBLE_421926，则 x 为 10，否则为 8
-        const x = this.id < Photo.SCRAMBLE_421926 ? 10 : 8;
+        const x = this.id < JMHtmlPhoto.SCRAMBLE_421926 ? 10 : 8;
         // 拼接 id 和 name 生成字符串 s
         const s = `${this.id}${name}`;
         // 创建 md5 哈希对象
@@ -83,10 +75,6 @@ export class Photo {
 
   public getPhotoUrls(): string[] {
     return this.photo_urls;
-  }
-
-  public getPhotoNames(): string[] {
-    return this.photo_names;
   }
 
   public getPhotoIds(): string[] {

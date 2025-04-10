@@ -1,14 +1,10 @@
+import { JMAlbumAbstract } from "../abstract/JMAlbumAbstract";
 import * as regexp from "../utils/Regexp";
-import { Photo } from "./Photo";
+import { JMHtmlPhoto } from "./JMHtmlPhoto";
 
-export class Album {
-  private id: string;
+export class JMHtmlAlbum extends JMAlbumAbstract {
   private jmId: string;
   private scramble_id: number;
-  /**
-   * 名称
-   */
-  private name: string;
   /**
    * 章节列表
    */
@@ -25,40 +21,9 @@ export class Album {
    * 更新时间
    */
   private update_date: string;
-  /**
-   * 作品
-   */
-  private works: string[];
-  /**
-   * 登场人物
-   */
-  private actors: string[];
-  /**
-   * 标签
-   */
-  private tags: string[];
-  /**
-   * 作者
-   */
-  private authors: string[];
-  /**
-   * 描述
-   */
-  private description: string;
-  /**
-   * 点赞数
-   */
-  private likes: string;
-  /**
-   * 观看次数
-   */
-  private views: string;
-  /**
-   * 章节详情列表
-   */
-  private photos: Photo[] = [];
 
   constructor(html: string) {
+    super();
     // JM ID
     this.jmId = html.match(regexp.JM_ALBUM_STR_ID)[1];
     // JM 数字ID
@@ -93,7 +58,7 @@ export class Album {
     // 喜欢/点赞
     this.likes = html.match(regexp.JM_ALBUM_LIKES)[1];
     // 观看次数
-    this.views = html.match(regexp.JM_ALBUM_VIEWS)[1];
+    this.total_views = html.match(regexp.JM_ALBUM_VIEWS)[1];
   }
 
   private extractLables(
@@ -126,12 +91,8 @@ export class Album {
     return this.episodes;
   }
 
-  public addPhoto(photo: Photo) {
-    this.photos.push(photo);
-  }
-
-  public getPhotos() {
-    return this.photos;
+  public getPhotos(): JMHtmlPhoto[] {
+    return this.photos as JMHtmlPhoto[];
   }
 
   public getPageCount() {
@@ -170,7 +131,7 @@ export class Album {
     return this.likes;
   }
 
-  public getViews() {
-    return this.views;
+  public getTotalViews() {
+    return this.total_views;
   }
 }

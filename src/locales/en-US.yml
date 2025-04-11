@@ -17,7 +17,7 @@ _config:
   - level: Compression level, 0~9, 0 is only stores
   - $desc: Cache settings
     cache: Cache files
-  - autoDelete: Automatically delete cache
+  - autoDelete: Automatically delete cache, **need cron services**
   - cron: 5-bit cron expression
     deleteInStart: Detection on startup
     keepDays: Cache retention time (days)

@@ -17,7 +17,7 @@ _config:
   - level: 压缩级别，0~9，0为仅存储
   - $desc: 缓存设置
     cache: 缓存文件
-  - autoDelete: 自动删除缓存
+  - autoDelete: 自动删除缓存，**依赖cron服务**
   - cron: 5位cron表达式
     deleteInStart: 启动时检测
     keepDays: 缓存保留时间（天）

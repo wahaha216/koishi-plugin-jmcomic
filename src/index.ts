@@ -2,8 +2,9 @@ import { Context, h, HTTP, Logger, Schema } from "koishi";
 import { join } from "path";
 import { readFile, rm } from "fs/promises";
 import { deleteFewDaysAgoFolders, getFileInfo } from "./utils/Utils";
-import { schedule, validate } from "node-cron";
 import { JMAppClient } from "./entity/JMAppClient";
+import {} from "@koishijs/plugin-notifier";
+import {} from "koishi-plugin-cron";
 
 export const name = "jmcomic";
 
@@ -65,6 +66,7 @@ export const Config: Schema<Config> = Schema.intersect([
 
 export const inject = {
   required: ["http"],
+  optional: ["notifier", "cron"],
 };
 
 export let http: HTTP;
@@ -85,8 +87,6 @@ export async function apply(ctx: Context, config: Config) {
 
   const root = join(ctx.baseDir, "data", "jmcomic");
 
-  console.log(config);
-
   const scheduleFn = async () => {
     const albumPath = join(ctx.baseDir, "data", "jmcomic", "album");
     await deleteFewDaysAgoFolders(albumPath, config.keepDays);
@@ -94,16 +94,21 @@ export async function apply(ctx: Context, config: Config) {
     await deleteFewDaysAgoFolders(photoPath, config.keepDays);
   };
 
-  // 如果输入的cron合法，则开始执行
-  if (debug) logger.info(`cron: ${config.cron}`);
-  if (validate(config.cron)) {
-    schedule(config.cron, scheduleFn);
-  } else {
-    logger.error("cron 格式错误");
+  // 如果启用了cron服务
+  if (ctx.cron) {
+    ctx.cron(config.cron, scheduleFn);
   }
 
   // 启动时检查并删除符合条件的缓存图片
-  if (config.deleteInStart) scheduleFn();
+  if (config.autoDelete && config.deleteInStart) scheduleFn();
+
+  if (ctx.notifier) {
+    ctx.notifier.create({
+      type: "warning",
+      content:
+        "据JMComic-Crawler-Python源码可知JM图片还有gif形式，目前尚未支持",
+    });
+  }
 
   ctx
     .command("jm.album <albumId:string>")

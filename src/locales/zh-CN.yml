@@ -14,6 +14,7 @@ _config:
     sendMethod: 发送方式
     retryCount: 重试次数限制
     password: 密码，留空则不加密
+    fileName: "文件名定义<br>`{{name}}`：标题<br>`{{id}}`：章节或者本子ID<br>`{{index}}`：多章节本子自动填充`_1` `_2`"
   - level: 压缩级别，0~9，0为仅存储
   - $desc: 缓存设置
     cache: 缓存文件

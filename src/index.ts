@@ -13,6 +13,7 @@ export interface Config {
   sendMethod?: "zip" | "pdf";
   retryCount?: number;
   password?: string;
+  fileName?: string;
   level?: number;
   cache?: boolean;
   autoDelete?: boolean;
@@ -28,6 +29,7 @@ export const Config: Schema<Config> = Schema.intersect([
     retryCount: Schema.number().min(1).max(5).default(5),
     sendMethod: Schema.union(["zip", "pdf"]).default("pdf"),
     password: Schema.string(),
+    fileName: Schema.string().default("{{name}} ({{id}}){{index}}"),
   }),
   Schema.union([
     Schema.object({
@@ -110,6 +112,13 @@ export async function apply(ctx: Context, config: Config) {
     });
   }
 
+  const formatFileName = (name: string, id: string, index?: number) => {
+    return config.fileName
+      .replaceAll("{{name}}", name)
+      .replaceAll("{{id}}", id)
+      .replaceAll("{{index}}", index ? `_${index}` : "");
+  };
+
   ctx
     .command("jm.album <albumId:string>")
     .alias("本子")
@@ -140,8 +149,10 @@ export async function apply(ctx: Context, config: Config) {
         if (typeof filePath === "string") {
           const buffer = await readFile(filePath);
           const { fileName, ext, dir } = getFileInfo(filePath);
+          const name = formatFileName(fileName, albumId);
+          if (debug) logger.info(`文件名：${name}.${ext}`);
           await session.send([
-            h.file(buffer, ext, { title: `${fileName} (${albumId}).${ext}` }),
+            h.file(buffer, ext, { title: `${name}.${ext}` }),
           ]);
           // 未开启缓存则直接删除
           if (!config.cache) rm(dir, { recursive: true });
@@ -149,11 +160,13 @@ export async function apply(ctx: Context, config: Config) {
         // 返回的路径是字符串数组
         else {
           let fileDir: string;
-          for (const p of filePath) {
+          for (const [index, p] of filePath.entries()) {
             const buffer = await readFile(p);
             const { fileName, ext, dir } = getFileInfo(p);
+            const name = formatFileName(fileName, albumId, index + 1);
+            if (debug) logger.info(`文件名：${name}.${ext}`);
             await session.send([
-              h.file(buffer, ext, { title: `${fileName} (${albumId}).${ext}` }),
+              h.file(buffer, ext, { title: `${name}.${ext}` }),
             ]);
             fileDir = dir;
           }
@@ -190,22 +203,25 @@ export async function apply(ctx: Context, config: Config) {
         const jmClient = new JMAppClient(root);
         const photo = await jmClient.getPhotoById(photoId);
         await jmClient.downloadByPhoto(photo);
-        const name = photo.getName();
+        const photoName = photo.getName();
         let filePath: string;
         if (config.sendMethod === "zip") {
           filePath = await jmClient.photoToZip(
             photo,
-            name,
+            photoName,
             config.password,
             config.level
           );
         } else {
-          filePath = await jmClient.photoToPdf(photo, name);
+          filePath = await jmClient.photoToPdf(photo, photoName);
         }
         const buffer = await readFile(filePath);
         const { fileName, ext, dir } = getFileInfo(filePath);
+        const name = formatFileName(fileName, photoId);
+        if (debug) logger.info(`文件名：${filePath}`);
+        if (debug) logger.info(`文件名：${name}.${ext}`);
         await session.send([
-          h.file(buffer, ext, { title: `${fileName} (${photoId}).${ext}` }),
+          h.file(buffer, ext, { title: `${name} (${photoId}).${ext}` }),
         ]);
         // 未开启缓存则直接删除
         if (!config.cache) rm(dir, { recursive: true });

@@ -14,6 +14,7 @@ _config:
     sendMethod: Send method
     retryCount: Retry limit
     password: Password, leave blank without encryption
+    fileName: "File name definition<br>`{{name}}`: Title<br>`{{id}}`: Chapter or Book ID<br>`{{index}}`: Multi-chapter book auto-filling `_1` `_2`"
   - level: Compression level, 0~9, 0 is only stores
   - $desc: Cache settings
     cache: Cache files

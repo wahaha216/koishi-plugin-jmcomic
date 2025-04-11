@@ -1,11 +1,11 @@
 import { statSync, accessSync, constants } from "fs";
-import { readdir, stat, rmdir } from "fs/promises";
+import { readdir, stat, rm } from "fs/promises";
 import { http, logger, retryCount } from "..";
 import { JUMP_URL, URL_LOCATION } from "./Regexp";
 import { HTTP } from "koishi";
 import { IJMResponse } from "../types/JMClient";
 import { JM_CLIENT_URL_LIST, JM_IMAGE_URL_LIST } from "./Const";
-import { normalize, basename, extname, dirname } from "path";
+import { normalize, parse } from "path";
 
 /**
  * 文件是否存在
@@ -205,17 +205,18 @@ export async function requestWithUrlSwitch<T = IJMResponse>(
 /**
  * 获取文件名和扩展名
  * @param filePath 文件路径
- * @returns 文件名和扩展名组成的对象 { fileName, ext }
+ * @returns 文件名、扩展名和路径组成的对象 { fileName, ext, dir }
  */
 export function getFileInfo(filePath: string) {
   // 通过 normalize 确保文件路径是标准化的，以防路径中存在冗余的部分（如多余的 / 或 \）
   const normalizedPath = normalize(filePath);
-  // 使用 basename 获取文件名，basename 只返回文件的名称部分，忽略路径部分
-  const fileName = basename(normalizedPath);
+  const parsePath = parse(normalizedPath);
   // 使用 extname 获取文件的扩展名，extname 会返回以 . 开头的扩展名，所以使用 slice(1) 去掉点号
-  const ext = extname(normalizedPath).slice(1);
+  const ext = parsePath.ext.slice(1);
+  // 使用 basename 获取文件名，basename 只返回文件的名称部分，忽略路径部分
+  const fileName = parsePath.name;
   // 使用 dirname 获取文件路径（不包括文件名）
-  const dir = dirname(normalizedPath);
+  const dir = parsePath.dir;
   // 返回文件名和扩展名
   return { fileName, ext, dir };
 }
@@ -246,7 +247,7 @@ export async function deleteFewDaysAgoFolders(path: string, days: number) {
     // 转换为天数并取整
     const diffDays = Math.floor(diffTime / (1000 * 3600 * 24));
     if (diffDays >= days) {
-      rmdir(`${path}/${folder}`, { recursive: true });
+      rm(`${path}/${folder}`, { recursive: true });
     }
   }
 }

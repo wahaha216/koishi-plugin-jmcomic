@@ -17,7 +17,7 @@ import {
   sanitizeFileName,
 } from "../utils/Utils";
 import { Directorys } from "../types";
-import { join } from "path";
+import { extname, join } from "path";
 import sharp from "sharp";
 import { Recipe } from "muhammara";
 
@@ -287,8 +287,9 @@ export class JMAppClient extends JMClientAbstract {
       // webp 会导致报错，转成jpg
       const buffer = await readFile(imagePath);
 
+      const ext = extname(imagePath);
       // 替换文件扩展名
-      const jpgName = image.replace(".webp", ".jpg");
+      const jpgName = image.replace(ext, ".jpg");
       // 完整名称
       const jpgPath = join(tempPath, jpgName);
       // 转换成jpg

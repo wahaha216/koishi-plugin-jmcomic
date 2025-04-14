@@ -29,7 +29,7 @@ export const Config: Schema<Config> = Schema.intersect([
     retryCount: Schema.number().min(1).max(5).default(5),
     sendMethod: Schema.union(["zip", "pdf"]).default("pdf"),
     password: Schema.string(),
-    fileName: Schema.string().default("{{name}} ({{id}}){{index}}"),
+    fileName: Schema.string().default("{{name}} ({{id}})_{{index}}"),
   }),
   Schema.union([
     Schema.object({
@@ -116,7 +116,7 @@ export async function apply(ctx: Context, config: Config) {
     return config.fileName
       .replaceAll("{{name}}", name)
       .replaceAll("{{id}}", id)
-      .replaceAll("{{index}}", index ? `_${index}` : "");
+      .replaceAll("{{index}}", index ? `${index}` : "");
   };
 
   ctx

@@ -6,6 +6,9 @@ import { HTTP } from "koishi";
 import { IJMResponse } from "../types/JMClient";
 import { JM_CLIENT_URL_LIST, JM_IMAGE_URL_LIST } from "./Const";
 import { normalize, parse } from "path";
+import { MySqlError } from "../error/mysql.error";
+import { OverRetryError } from "../error/overRetry.error";
+import { EmptyBufferError } from "../error/emptybuffer.error";
 
 /**
  * 文件是否存在
@@ -134,19 +137,19 @@ export async function requestWithRetry<T = IJMResponse>(
       typeof res.data === "string" &&
       res.data.includes("Could not connect to mysql")
     ) {
-      throw new Error("Could not connect to mysql");
+      throw new MySqlError();
     }
     return res.data as T;
   } catch (error) {
-    if (error.message.includes("Could not")) {
-      throw new Error("Could not connect to mysql");
+    if (error instanceof MySqlError) {
+      throw new MySqlError();
     } else if (retryIndex < retryCount) {
       logger.info(
         `${url} 请求失败，正在重试... ${retryIndex + 1}/${retryCount}`
       );
       return await requestWithRetry<T>(url, method, config, retryIndex + 1);
     } else {
-      throw new Error(`请求失败，超过最大重试次数: ${url}`);
+      throw new OverRetryError(`请求失败，超过最大重试次数: ${url}`);
     }
   }
 }
@@ -176,17 +179,15 @@ export async function requestWithUrlSwitch<T = IJMResponse>(
     if (urlIndex < urlCount) {
       const res = await requestWithRetry<T>(url, method, config);
       if (res instanceof ArrayBuffer && res.byteLength === 0) {
-        throw new Error("Empty Buffer");
+        throw new EmptyBufferError();
       }
       return res;
     } else {
       throw new Error("所有域名请求失败");
     }
   } catch (error) {
-    const isError = error instanceof Error;
-    const isMysqlError =
-      isError && error.message.includes("Could not connect to mysql");
-    const isEmptyBuffer = isError && error.message === "Empty Buffer";
+    const isMysqlError = error instanceof MySqlError;
+    const isEmptyBuffer = error instanceof EmptyBufferError;
 
     if (isMysqlError || isEmptyBuffer) {
       logger.info(`请求失败，尝试切换域名... ${urlIndex + 1}/${urlCount}`);

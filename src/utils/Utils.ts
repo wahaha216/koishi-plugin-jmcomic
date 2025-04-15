@@ -252,3 +252,15 @@ export async function deleteFewDaysAgoFolders(path: string, days: number) {
     }
   }
 }
+
+export function formatFileName(
+  originName: string,
+  name: string,
+  id: string,
+  index?: number
+) {
+  return originName
+    .replaceAll("{{name}}", name)
+    .replaceAll("{{id}}", id)
+    .replaceAll("{{index}}", index ? `${index}` : "");
+}

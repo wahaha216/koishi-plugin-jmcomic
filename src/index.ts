@@ -1,7 +1,11 @@
 import { Context, h, HTTP, Logger, Schema } from "koishi";
 import { join } from "path";
 import { readFile, rm } from "fs/promises";
-import { deleteFewDaysAgoFolders, getFileInfo } from "./utils/Utils";
+import {
+  deleteFewDaysAgoFolders,
+  formatFileName,
+  getFileInfo,
+} from "./utils/Utils";
 import { JMAppClient } from "./entity/JMAppClient";
 import {} from "@koishijs/plugin-notifier";
 import {} from "koishi-plugin-cron";
@@ -112,13 +116,6 @@ export async function apply(ctx: Context, config: Config) {
     });
   }
 
-  const formatFileName = (name: string, id: string, index?: number) => {
-    return config.fileName
-      .replaceAll("{{name}}", name)
-      .replaceAll("{{id}}", id)
-      .replaceAll("{{index}}", index ? `${index}` : "");
-  };
-
   ctx
     .command("jm.album <albumId:string>")
     .alias("本子")
@@ -149,7 +146,7 @@ export async function apply(ctx: Context, config: Config) {
         if (typeof filePath === "string") {
           const buffer = await readFile(filePath);
           const { fileName, ext, dir } = getFileInfo(filePath);
-          const name = formatFileName(fileName, albumId);
+          const name = formatFileName(config.fileName, fileName, albumId);
           if (debug) logger.info(`文件名：${name}.${ext}`);
           await session.send([
             h.file(buffer, ext, { title: `${name}.${ext}` }),
@@ -163,7 +160,12 @@ export async function apply(ctx: Context, config: Config) {
           for (const [index, p] of filePath.entries()) {
             const buffer = await readFile(p);
             const { fileName, ext, dir } = getFileInfo(p);
-            const name = formatFileName(fileName, albumId, index + 1);
+            const name = formatFileName(
+              config.fileName,
+              fileName,
+              albumId,
+              index + 1
+            );
             if (debug) logger.info(`文件名：${name}.${ext}`);
             await session.send([
               h.file(buffer, ext, { title: `${name}.${ext}` }),
@@ -217,7 +219,7 @@ export async function apply(ctx: Context, config: Config) {
         }
         const buffer = await readFile(filePath);
         const { fileName, ext, dir } = getFileInfo(filePath);
-        const name = formatFileName(fileName, photoId);
+        const name = formatFileName(config.fileName, fileName, photoId);
         if (debug) logger.info(`文件名：${filePath}`);
         if (debug) logger.info(`文件名：${name}.${ext}`);
         await session.send([

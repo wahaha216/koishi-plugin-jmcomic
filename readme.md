@@ -12,7 +12,7 @@ jm album info xxxxxx
 jm photo xxxxxx
 ```
 
-可在配置中配置是发送 PDF 还是 ZIP 压缩包，压缩包支持加密
+可在配置中配置是发送 PDF 还是 ZIP 压缩包，支持加密。
 
 ## 更新日志
 

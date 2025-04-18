@@ -17,6 +17,10 @@ jm photo xxxxxx
 ## 更新日志
 
 <details>
+<summary>0.0.3</summary>
+忘了给自动删除做判断
+</details>
+
 <summary>0.0.2</summary>
 依赖从peerDependencies移动到dependencies
 </details>

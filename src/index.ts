@@ -13,7 +13,6 @@ import {} from "koishi-plugin-cron";
 export const name = "jmcomic";
 
 export interface Config {
-  // url?: string;
   sendMethod?: "zip" | "pdf";
   retryCount?: number;
   password?: string;
@@ -29,7 +28,6 @@ export interface Config {
 
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
-    // url: Schema.string().required().default("18comic-mygo.vip"),
     retryCount: Schema.number().min(1).max(5).default(5),
     sendMethod: Schema.union(["zip", "pdf"]).default("pdf"),
     password: Schema.string(),
@@ -100,8 +98,8 @@ export async function apply(ctx: Context, config: Config) {
     await deleteFewDaysAgoFolders(photoPath, config.keepDays);
   };
 
-  // 如果启用了cron服务
-  if (ctx.cron) {
+  // 如果启用了cron服务，并启用了自动删除
+  if (config.autoDelete && ctx.cron) {
     ctx.cron(config.cron, scheduleFn);
   }
 

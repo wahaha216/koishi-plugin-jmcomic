@@ -12,6 +12,7 @@ _config:
   - $desc: Basic settings
     url: JM domain name
     sendMethod: Send method
+    fileMethod: "File acquisition method<br>`buffer`: Read as buffer and send it to the bot implementation.<br>`file`: Send it in the local path of `file:///`. For example, if in the docker environment, please map the `/koishi` directory at the bot implementation."
     retryCount: Retry limit
     password: Password, leave blank without encryption
     fileName: "File name definition<br>`{{name}}`: Title<br>`{{id}}`: Chapter or Book ID<br>`{{index}}`: Multi-chapter book auto-filling `_1` `_2`"

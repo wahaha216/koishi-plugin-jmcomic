@@ -14,6 +14,7 @@ export const name = "jmcomic";
 
 export interface Config {
   sendMethod?: "zip" | "pdf";
+  fileMethod?: "buffer" | "file";
   retryCount?: number;
   password?: string;
   fileName?: string;
@@ -30,6 +31,7 @@ export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
     retryCount: Schema.number().min(1).max(5).default(5),
     sendMethod: Schema.union(["zip", "pdf"]).default("pdf"),
+    fileMethod: Schema.union(["buffer", "file"]).default("buffer"),
     password: Schema.string(),
     fileName: Schema.string().default("{{name}} ({{id}})_{{index}}"),
   }),
@@ -142,13 +144,19 @@ export async function apply(ctx: Context, config: Config) {
         }
         // 返回的路径是字符串
         if (typeof filePath === "string") {
-          const buffer = await readFile(filePath);
           const { fileName, ext, dir } = getFileInfo(filePath);
           const name = formatFileName(config.fileName, fileName, albumId);
           if (debug) logger.info(`文件名：${name}.${ext}`);
-          await session.send([
-            h.file(buffer, ext, { title: `${name}.${ext}` }),
-          ]);
+          if (config.fileMethod === "buffer") {
+            const buffer = await readFile(filePath);
+            await session.send([
+              h.file(buffer, ext, { title: `${name}.${ext}` }),
+            ]);
+          } else {
+            await session.send([
+              h.file(`file:///${filePath}`, { title: `${name}.${ext}` }),
+            ]);
+          }
           // 未开启缓存则直接删除
           if (!config.cache) rm(dir, { recursive: true });
         }
@@ -156,7 +164,6 @@ export async function apply(ctx: Context, config: Config) {
         else {
           let fileDir: string;
           for (const [index, p] of filePath.entries()) {
-            const buffer = await readFile(p);
             const { fileName, ext, dir } = getFileInfo(p);
             const name = formatFileName(
               config.fileName,
@@ -165,9 +172,17 @@ export async function apply(ctx: Context, config: Config) {
               index + 1
             );
             if (debug) logger.info(`文件名：${name}.${ext}`);
-            await session.send([
-              h.file(buffer, ext, { title: `${name}.${ext}` }),
-            ]);
+            if (config.fileMethod === "buffer") {
+              const buffer = await readFile(p);
+              await session.send([
+                h.file(buffer, ext, { title: `${name}.${ext}` }),
+              ]);
+            } else {
+              await session.send([
+                h.file(`file:///${p}`, { title: `${name}.${ext}` }),
+              ]);
+            }
+
             fileDir = dir;
           }
           // 未开启缓存则直接删除
@@ -215,14 +230,19 @@ export async function apply(ctx: Context, config: Config) {
         } else {
           filePath = await jmClient.photoToPdf(photo, photoName);
         }
-        const buffer = await readFile(filePath);
         const { fileName, ext, dir } = getFileInfo(filePath);
         const name = formatFileName(config.fileName, fileName, photoId);
-        if (debug) logger.info(`文件名：${filePath}`);
         if (debug) logger.info(`文件名：${name}.${ext}`);
-        await session.send([
-          h.file(buffer, ext, { title: `${name} (${photoId}).${ext}` }),
-        ]);
+        if (config.fileMethod === "buffer") {
+          const buffer = await readFile(filePath);
+          await session.send([
+            h.file(buffer, ext, { title: `${name} (${photoId}).${ext}` }),
+          ]);
+        } else {
+          await session.send([
+            h.file(`file:///${filePath}`, { title: `${name}.${ext}` }),
+          ]);
+        }
         // 未开启缓存则直接删除
         if (!config.cache) rm(dir, { recursive: true });
       } catch (error) {

@@ -262,5 +262,6 @@ export function formatFileName(
   return originName
     .replaceAll("{{name}}", name)
     .replaceAll("{{id}}", id)
-    .replaceAll("{{index}}", index ? `${index}` : "");
+    .replaceAll("{{index}}", index ? `${index}` : "")
+    .trim();
 }

@@ -17,10 +17,19 @@ jm photo xxxxxx
 ## 更新日志
 
 <details>
+<summary>0.0.4</summary>
+1.文件名移除前后空格
+
+2.新增文件发送配置，用于配置文件是以 buffer 读取后发送还是以本地地址的形式发送。docker 中使用 file 形式需要在 bot 实现端同时映射/koishi 目录
+
+</details>
+
+<details>
 <summary>0.0.3</summary>
 忘了给自动删除做判断
 </details>
 
+<details>
 <summary>0.0.2</summary>
 依赖从peerDependencies移动到dependencies
 </details>

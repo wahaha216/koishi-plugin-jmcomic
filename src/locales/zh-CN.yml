@@ -2,12 +2,18 @@ commands:
   jm:
     description: 下载JM漫画，无需python！
     examples: |-
-      jm 114514
-    messages:
-      empty: JMID 不能为空
-      formatError: JMID 格式错误
-      notFound: 找不到该车牌
-      pleaseWait: 正在获取，请等待亿会
+      jm album 本子数字ID
+      jm album info 本子数字ID
+      jm photo 本子章节数字ID
+    album:
+      examples: |-
+        jm album 数字ID
+      info:
+        examples: |-
+          jm album info 本子数字ID
+    photo:
+      examples: |-
+        jm photo 本子章节数字ID
 _config:
   - $desc: 基础设置
     url: JM域名

@@ -2,12 +2,18 @@ commands:
   jm:
     description: Download JM comics without python!
     examples: |-
-      jm 114514
-    messages:
-      empty: JM ID cannot be empty
-      formatError: JM ID format error
-      notFound: The JM ID cannot be found
-      pleaseWait: Getting it, please wait
+      jm album albumID
+      jm album info albumID
+      jm photo photoID
+    album:
+      examples: |-
+        jm album albumID
+      info:
+        examples: |-
+          jm album info albumID
+    photo:
+      examples: |-
+        jm photo photoID
 _config:
   - $desc: Basic settings
     url: JM domain name

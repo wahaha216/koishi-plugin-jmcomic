@@ -8,12 +8,21 @@ commands:
     album:
       examples: |-
         jm album albumID
+      messages:
+        notExistError: albumID not found
+        mysqlError: All alternate addresses have been tried. But no response.
       info:
         examples: |-
           jm album info albumID
+        messages:
+          notExistError: albumID not found
+          mysqlError: All alternate addresses have been tried. But no response.
     photo:
       examples: |-
         jm photo photoID
+      messages:
+        notExistError: photoID not found
+        mysqlError: All alternate addresses have been tried. But no response.
 _config:
   - $desc: Basic settings
     url: JM domain name

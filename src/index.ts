@@ -9,6 +9,9 @@ import {
 import { JMAppClient } from "./entity/JMAppClient";
 import {} from "@koishijs/plugin-notifier";
 import {} from "koishi-plugin-cron";
+import { AlbumNotExistError } from "./error/albumNotExist.error";
+import { MySqlError } from "./error/mysql.error";
+import { PhotoNotExistError } from "./error/photoNotExist.error";
 
 export const name = "jmcomic";
 
@@ -189,13 +192,16 @@ export async function apply(ctx: Context, config: Config) {
           if (!config.cache) rm(fileDir, { recursive: true });
         }
       } catch (error) {
-        if (error instanceof Error) {
-          if (error.message.includes("Could not connect to mysql")) {
-            await session.send([
-              h.quote(messageId),
-              h.text("已尝试所有可能，但是JM坏掉了"),
-            ]);
-          }
+        if (error instanceof AlbumNotExistError) {
+          await session.send([
+            h.quote(messageId),
+            h.text(session.text(".notExistError")),
+          ]);
+        } else if (error instanceof MySqlError) {
+          await session.send([
+            h.quote(messageId),
+            h.text(session.text(".mysqlError")),
+          ]);
         } else {
           throw new Error(error);
         }
@@ -246,13 +252,16 @@ export async function apply(ctx: Context, config: Config) {
         // 未开启缓存则直接删除
         if (!config.cache) rm(dir, { recursive: true });
       } catch (error) {
-        if (error instanceof Error) {
-          if (error.message.includes("Could not connect to mysql")) {
-            await session.send([
-              h.quote(messageId),
-              h.text("已尝试所有可能，但是JM坏掉了"),
-            ]);
-          }
+        if (error instanceof PhotoNotExistError) {
+          await session.send([
+            h.quote(messageId),
+            h.text(session.text(".notExistError")),
+          ]);
+        } else if (error instanceof MySqlError) {
+          await session.send([
+            h.quote(messageId),
+            h.text(session.text(".mysqlError")),
+          ]);
         } else {
           throw new Error(error);
         }
@@ -285,13 +294,16 @@ export async function apply(ctx: Context, config: Config) {
           h.text(`观看数：${album.getTotalViews()}`),
         ]);
       } catch (error) {
-        if (error instanceof Error) {
-          if (error.message.includes("Could not connect to mysql")) {
-            await session.send([
-              h.quote(messageId),
-              h.text("已尝试所有可能，但是JM坏掉了"),
-            ]);
-          }
+        if (error instanceof AlbumNotExistError) {
+          await session.send([
+            h.quote(messageId),
+            h.text(session.text(".notExistError")),
+          ]);
+        } else if (error instanceof MySqlError) {
+          await session.send([
+            h.quote(messageId),
+            h.text(session.text(".mysqlError")),
+          ]);
         } else {
           throw new Error(error);
         }

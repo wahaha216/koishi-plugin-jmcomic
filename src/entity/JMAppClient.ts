@@ -20,6 +20,8 @@ import { Directorys } from "../types";
 import { extname, join } from "path";
 import sharp from "sharp";
 import { Recipe } from "muhammara";
+import { AlbumNotExistError } from "../error/albumNotExist.error";
+import { PhotoNotExistError } from "../error/photoNotExist.error";
 
 export class JMAppClient extends JMClientAbstract {
   static APP_VERSION = "1.7.9";
@@ -69,6 +71,7 @@ export class JMAppClient extends JMClientAbstract {
       responseType: "json",
     });
     const album_json = this.decodeBase64<IJMAlbum>(res.data, timestamp);
+    if (!album_json.name) throw new AlbumNotExistError();
     const album = JMAppAlbum.fromJson(album_json);
     const series = album.getSeries();
     const photos: JMAppPhoto[] = [];
@@ -95,6 +98,7 @@ export class JMAppClient extends JMClientAbstract {
       responseType: "json",
     });
     const photo_json = this.decodeBase64<IJMPhoto>(res.data, timestamp);
+    if (!photo_json.name) throw new PhotoNotExistError();
     const photo = JMAppPhoto.fromJson(photo_json);
     const images = photo.getImages();
     const image_ids = images.map((image) => image.split(".")[0]);
@@ -127,9 +131,11 @@ export class JMAppClient extends JMClientAbstract {
     let path = `${this.root}/${type}/${id}/origin`;
     if (debug) {
       logger.info(`开始下载: ${id}`);
-      logger.info(`单章节: ${single ? "是" : "否"}`);
-      logger.info(`子章节: ${albumId ? "是" : "否"}`);
-      logger.info(`本子ID：${albumId}`);
+      if (type === "album") {
+        logger.info(`单章节: ${single ? "是" : "否"}`);
+        logger.info(`子章节: ${albumId ? "是" : "否"}`);
+        logger.info(`本子ID: ${albumId}`);
+      }
     }
     if (type === "album") {
       if (single) {

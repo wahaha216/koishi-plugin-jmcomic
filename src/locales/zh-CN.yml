@@ -8,12 +8,21 @@ commands:
     album:
       examples: |-
         jm album 数字ID
+      messages:
+        notExistError: 找不到该ID对应的本子
+        mysqlError: 已尝试所有备用地址，但是JM坏掉了
       info:
         examples: |-
           jm album info 本子数字ID
+        messages:
+          notExistError: 找不到该ID对应的本子
+          mysqlError: 已尝试所有备用地址，但是JM坏掉了
     photo:
       examples: |-
         jm photo 本子章节数字ID
+      messages:
+        notExistError: 找不到该ID对应的章节
+        mysqlError: 已尝试所有备用地址，但是JM坏掉了
 _config:
   - $desc: 基础设置
     url: JM域名

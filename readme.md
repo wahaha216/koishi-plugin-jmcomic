@@ -17,6 +17,16 @@ jm photo xxxxxx
 ## 更新日志
 
 <details>
+<summary>0.0.6</summary>
+添加了一些错误提示
+</details>
+
+<details>
+<summary>0.0.5</summary>
+修改使用示例
+</details>
+
+<details>
 <summary>0.0.4</summary>
 1.文件名移除前后空格
 

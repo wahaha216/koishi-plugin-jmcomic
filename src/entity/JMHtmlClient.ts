@@ -12,7 +12,7 @@ import {
 import { JMHtmlAlbum } from "./JMHtmlAlbum";
 import { JMHtmlPhoto } from "./JMHtmlPhoto";
 import { archiverImage, decodeImage, saveImage } from "../utils/Image";
-import { logger } from "..";
+import { logger, concurrentDecodeLimit, concurrentDownloadLimit } from "..";
 import { join } from "path";
 import { Recipe } from "muhammara";
 import sharp from "sharp";
@@ -138,7 +138,7 @@ export class JMHtmlClient extends JMClientAbstract {
           });
           await saveImage(res, `${path}/${image}`);
         }),
-      5
+      concurrentDownloadLimit
     );
     this.decodeByPhoto(photo);
   }

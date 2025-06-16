@@ -21,6 +21,8 @@ export interface Config {
   retryCount?: number;
   password?: string;
   fileName?: string;
+  concurrentDownloadLimit?: number;
+  concurrentDecodeLimit?: number;
   level?: number;
   cache?: boolean;
   autoDelete?: boolean;
@@ -37,6 +39,16 @@ export const Config: Schema<Config> = Schema.intersect([
     fileMethod: Schema.union(["buffer", "file"]).default("buffer"),
     password: Schema.string(),
     fileName: Schema.string().default("{{name}} ({{id}})_{{index}}"),
+    concurrentDownloadLimit: Schema.number()
+      .min(0)
+      .max(20)
+      .default(10)
+      .role("slider"),
+    concurrentDecodeLimit: Schema.number()
+      .min(0)
+      .max(20)
+      .default(5)
+      .role("slider"),
   }),
   Schema.union([
     Schema.object({
@@ -82,11 +94,15 @@ export let http: HTTP;
 export let logger: Logger;
 export let retryCount: number;
 export let debug: boolean;
+export let concurrentDownloadLimit: number;
+export let concurrentDecodeLimit: number;
 
 export async function apply(ctx: Context, config: Config) {
   http = ctx.http;
   retryCount = config.retryCount;
   debug = config.debug;
+  concurrentDownloadLimit = config.concurrentDownloadLimit;
+  concurrentDecodeLimit = config.concurrentDecodeLimit;
 
   // i18n
   ctx.i18n.define("en-US", require("./locales/en-US"));

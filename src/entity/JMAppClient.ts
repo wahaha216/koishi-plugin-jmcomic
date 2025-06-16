@@ -1,4 +1,10 @@
-import { debug, http, logger } from "..";
+import {
+  debug,
+  http,
+  logger,
+  concurrentDecodeLimit,
+  concurrentDownloadLimit,
+} from "..";
 import { createHash, createDecipheriv } from "crypto";
 import FormData from "form-data";
 import { IJMAlbum, IJMUser, IJMPhoto, IJMResponse } from "../types/JMClient";
@@ -167,7 +173,7 @@ export class JMAppClient extends JMClientAbstract {
           );
           await saveImage(res, `${path}/${image}`);
         }),
-      5
+      concurrentDownloadLimit
     );
     if (debug) logger.info(`${id} 下载完成，开始解密图片`);
     await this.decodeByPhoto(photo, type, albumId, single);
@@ -209,7 +215,7 @@ export class JMAppClient extends JMClientAbstract {
           const imageBuffer = await readFile(imagePath);
           await decodeImage(imageBuffer, splitNumbers[index], decodedImagePath);
         }),
-      10
+      concurrentDecodeLimit
     );
     logger.info(`${id} 解密完成`);
   }

@@ -17,6 +17,22 @@ jm photo xxxxxx
 ## 更新日志
 
 <details>
+<summary>0.1.0</summary>
+1.队列系统
+
+2.下载并发与解密并发限制
+
+3.修改配置页面顺序、分类
+
+4.不再直接暴露变量，改为逐级传递
+
+5.统一暴露Error类
+
+6.添加域名切换条件
+
+</details>
+
+<details>
 <summary>0.0.6</summary>
 添加了一些错误提示
 </details>

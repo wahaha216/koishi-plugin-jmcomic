@@ -211,8 +211,9 @@ export async function requestWithUrlSwitch<T = IJMResponse>(
   } catch (error) {
     const isMysqlError = error instanceof MySqlError;
     const isEmptyBuffer = error instanceof EmptyBufferError;
+    const isOverRetryError = error instanceof OverRetryError;
 
-    if (isMysqlError || isEmptyBuffer) {
+    if (isMysqlError || isEmptyBuffer || isOverRetryError) {
       logger.info(`请求失败，尝试切换域名... ${urlIndex + 1}/${urlCount}`);
       return await requestWithUrlSwitch<T>(
         url_bak,

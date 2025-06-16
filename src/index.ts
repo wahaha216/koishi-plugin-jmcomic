@@ -4,8 +4,7 @@ import { deleteFewDaysAgoFolders } from "./utils/Utils";
 import { JMAppClient } from "./entity/JMAppClient";
 import {} from "@koishijs/plugin-notifier";
 import {} from "koishi-plugin-cron";
-import { AlbumNotExistError } from "./error/albumNotExist.error";
-import { MySqlError } from "./error/mysql.error";
+import { AlbumNotExistError, MySqlError } from "./error";
 import { createJmProcessor, JmTaskPayload } from "./processors/jmProcessor";
 import { Queue } from "./utils/Queue";
 

@@ -26,8 +26,7 @@ import { Directorys } from "../types";
 import { extname, join } from "path";
 import sharp from "sharp";
 import { Recipe } from "muhammara";
-import { AlbumNotExistError } from "../error/albumNotExist.error";
-import { PhotoNotExistError } from "../error/photoNotExist.error";
+import { AlbumNotExistError, PhotoNotExistError } from "../error";
 
 export class JMAppClient extends JMClientAbstract {
   static APP_VERSION = "1.7.9";

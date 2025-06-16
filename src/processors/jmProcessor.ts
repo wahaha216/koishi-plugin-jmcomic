@@ -175,11 +175,10 @@ export const createJmProcessor = (
           h.text(session.text(".mysqlError")),
         ]);
       } else {
-        logger.error(`处理任务 ID: ${id} 时发生未知错误:`, error);
+        // logger.error(`处理任务 ID: ${id} 时发生未知错误:`, error);
         await session.send([
           h.quote(messageId),
           h.text(`处理 ID 为 ${id} 的本子/章节时发生错误`),
-          h.text(error instanceof Error ? error.message : String(error)),
         ]);
         throw error; // 重新抛出以便队列捕获并标记失败
       }

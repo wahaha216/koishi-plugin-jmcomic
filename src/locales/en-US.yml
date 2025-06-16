@@ -9,6 +9,7 @@ commands:
       examples: |-
         jm album albumID
       messages:
+        addedToQueue: Album {id} has been added to the processing queue. Please wait.
         notExistError: albumID not found
         mysqlError: All alternate addresses have been tried. But no response.
       info:
@@ -21,6 +22,7 @@ commands:
       examples: |-
         jm photo photoID
       messages:
+        addedToQueue: Photo {id} has been added to the processing queue. Please wait.
         notExistError: photoID not found
         mysqlError: All alternate addresses have been tried. But no response.
 _config:
@@ -34,6 +36,7 @@ _config:
     retryCount: Retry limit
     concurrentDownloadLimit: Concurrent Download Limit
     concurrentDecodeLimit: Concurrent Decode Limit
+    concurrentQueueLimit: Concurrent Queue Limit
   - level: Compression level, 0~9, 0 is only stores
   - $desc: Cache settings
     cache: Cache files

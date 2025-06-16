@@ -1,17 +1,13 @@
 import { Context, h, HTTP, Logger, Schema } from "koishi";
 import { join } from "path";
-import { readFile, rm } from "fs/promises";
-import {
-  deleteFewDaysAgoFolders,
-  formatFileName,
-  getFileInfo,
-} from "./utils/Utils";
+import { deleteFewDaysAgoFolders } from "./utils/Utils";
 import { JMAppClient } from "./entity/JMAppClient";
 import {} from "@koishijs/plugin-notifier";
 import {} from "koishi-plugin-cron";
 import { AlbumNotExistError } from "./error/albumNotExist.error";
 import { MySqlError } from "./error/mysql.error";
-import { PhotoNotExistError } from "./error/photoNotExist.error";
+import { createJmProcessor, JmTaskPayload } from "./processors/jmProcessor";
+import { Queue } from "./utils/Queue";
 
 export const name = "jmcomic";
 
@@ -23,6 +19,7 @@ export interface Config {
   fileName?: string;
   concurrentDownloadLimit?: number;
   concurrentDecodeLimit?: number;
+  concurrentQueueLimit?: number;
   level?: number;
   cache?: boolean;
   autoDelete?: boolean;
@@ -50,6 +47,7 @@ export const Config: Schema<Config> = Schema.intersect([
     retryCount: Schema.number().min(1).max(5).default(5),
     concurrentDownloadLimit: Schema.number().min(0).max(20).default(10),
     concurrentDecodeLimit: Schema.number().min(0).max(20).default(5),
+    concurrentQueueLimit: Schema.number().min(0).max(10).default(1),
   }),
   Schema.object({
     cache: Schema.boolean().default(false),
@@ -129,6 +127,27 @@ export async function apply(ctx: Context, config: Config) {
     });
   }
 
+  const processorConfig = {
+    root,
+    sendMethod: config.sendMethod,
+    password: config.password,
+    level: config.level,
+    fileName: config.fileName,
+    fileMethod: config.fileMethod,
+    cache: config.cache,
+    debug: config.debug || false,
+  };
+
+  // 使用导入的 createJmProcessor 函数来创建处理器实例
+  const jmProcessor = createJmProcessor(processorConfig, logger);
+
+  // 初始化一个队列实例，处理所有 JM 相关的下载任务
+  const queue = new Queue<JmTaskPayload>(
+    jmProcessor,
+    { concurrency: config.concurrentQueueLimit || 1 },
+    logger
+  );
+
   ctx
     .command("jm.album <albumId:string>")
     .alias("本子")
@@ -141,81 +160,12 @@ export async function apply(ctx: Context, config: Config) {
         ]);
         return;
       }
-      try {
-        const jmClient = new JMAppClient(root);
-        const album = await jmClient.getAlbumById(albumId);
-        await jmClient.downloadByAlbum(album);
-        let filePath: string | string[];
-        if (config.sendMethod === "zip") {
-          filePath = await jmClient.albumToZip(
-            album,
-            config.password,
-            config.level
-          );
-        } else {
-          filePath = await jmClient.albumToPdf(album, config.password);
-        }
-        // 返回的路径是字符串
-        if (typeof filePath === "string") {
-          const { fileName, ext, dir } = getFileInfo(filePath);
-          const name = formatFileName(config.fileName, fileName, albumId);
-          if (debug) logger.info(`文件名：${name}.${ext}`);
-          if (config.fileMethod === "buffer") {
-            const buffer = await readFile(filePath);
-            await session.send([
-              h.file(buffer, ext, { title: `${name}.${ext}` }),
-            ]);
-          } else {
-            await session.send([
-              h.file(`file:///${filePath}`, { title: `${name}.${ext}` }),
-            ]);
-          }
-          // 未开启缓存则直接删除
-          if (!config.cache) rm(dir, { recursive: true });
-        }
-        // 返回的路径是字符串数组
-        else {
-          let fileDir: string;
-          for (const [index, p] of filePath.entries()) {
-            const { fileName, ext, dir } = getFileInfo(p);
-            const name = formatFileName(
-              config.fileName,
-              fileName,
-              albumId,
-              index + 1
-            );
-            if (debug) logger.info(`文件名：${name}.${ext}`);
-            if (config.fileMethod === "buffer") {
-              const buffer = await readFile(p);
-              await session.send([
-                h.file(buffer, ext, { title: `${name}.${ext}` }),
-              ]);
-            } else {
-              await session.send([
-                h.file(`file:///${p}`, { title: `${name}.${ext}` }),
-              ]);
-            }
-
-            fileDir = dir;
-          }
-          // 未开启缓存则直接删除
-          if (!config.cache) rm(fileDir, { recursive: true });
-        }
-      } catch (error) {
-        if (error instanceof AlbumNotExistError) {
-          await session.send([
-            h.quote(messageId),
-            h.text(session.text(".notExistError")),
-          ]);
-        } else if (error instanceof MySqlError) {
-          await session.send([
-            h.quote(messageId),
-            h.text(session.text(".mysqlError")),
-          ]);
-        } else {
-          throw new Error(error);
-        }
-      }
+      // 添加 album 任务到队列
+      queue.add({ type: "album", id: albumId, session, messageId });
+      await session.send([
+        h.quote(messageId),
+        h.text(session.text(".addedToQueue", { id: albumId })),
+      ]);
     });
 
   ctx
@@ -230,52 +180,12 @@ export async function apply(ctx: Context, config: Config) {
         ]);
         return;
       }
-      try {
-        const jmClient = new JMAppClient(root);
-        const photo = await jmClient.getPhotoById(photoId);
-        await jmClient.downloadByPhoto(photo);
-        const photoName = photo.getName();
-        let filePath: string;
-        if (config.sendMethod === "zip") {
-          filePath = await jmClient.photoToZip(
-            photo,
-            photoName,
-            config.password,
-            config.level
-          );
-        } else {
-          filePath = await jmClient.photoToPdf(photo, photoName);
-        }
-        const { fileName, ext, dir } = getFileInfo(filePath);
-        const name = formatFileName(config.fileName, fileName, photoId);
-        if (debug) logger.info(`文件名：${name}.${ext}`);
-        if (config.fileMethod === "buffer") {
-          const buffer = await readFile(filePath);
-          await session.send([
-            h.file(buffer, ext, { title: `${name} (${photoId}).${ext}` }),
-          ]);
-        } else {
-          await session.send([
-            h.file(`file:///${filePath}`, { title: `${name}.${ext}` }),
-          ]);
-        }
-        // 未开启缓存则直接删除
-        if (!config.cache) rm(dir, { recursive: true });
-      } catch (error) {
-        if (error instanceof PhotoNotExistError) {
-          await session.send([
-            h.quote(messageId),
-            h.text(session.text(".notExistError")),
-          ]);
-        } else if (error instanceof MySqlError) {
-          await session.send([
-            h.quote(messageId),
-            h.text(session.text(".mysqlError")),
-          ]);
-        } else {
-          throw new Error(error);
-        }
-      }
+      // 添加 photo 任务到队列
+      queue.add({ type: "album", id: photoId, session, messageId });
+      await session.send([
+        h.quote(messageId),
+        h.text(session.text(".addedToQueue", { id: photoId })),
+      ]);
     });
 
   ctx

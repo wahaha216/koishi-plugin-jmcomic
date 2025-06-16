@@ -9,6 +9,7 @@ commands:
       examples: |-
         jm album 数字ID
       messages:
+        addedToQueue: 已将 {id} 添加到处理队列，请稍候。
         notExistError: 找不到该ID对应的本子
         mysqlError: 已尝试所有备用地址，但是JM坏掉了
       info:
@@ -21,6 +22,7 @@ commands:
       examples: |-
         jm photo 本子章节数字ID
       messages:
+        addedToQueue: 已将 {id} 添加到处理队列，请稍候。
         notExistError: 找不到该ID对应的章节
         mysqlError: 已尝试所有备用地址，但是JM坏掉了
 _config:
@@ -34,6 +36,7 @@ _config:
     retryCount: 重试次数限制
     concurrentDownloadLimit: 同时下载数量限制
     concurrentDecodeLimit: 同时解密数量限制
+    concurrentQueueLimit: 同时处理数量限制
   - $desc: 缓存设置
     cache: 缓存文件
   - autoDelete: 自动删除缓存，**依赖cron服务**

@@ -133,7 +133,7 @@ export async function apply(ctx: Context, config: Config) {
   );
 
   // 初始化一个队列实例，处理所有 JM 相关的下载任务
-  const queue = new Queue<JmTaskPayload>(
+  const queue = new Queue(
     jmProcessor,
     { concurrency: config.concurrentQueueLimit || 1 },
     config,

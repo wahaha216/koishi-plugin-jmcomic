@@ -1,3 +1,4 @@
+import { Config } from "..";
 import { Logger } from "koishi";
 import { randomUUID } from "crypto";
 
@@ -27,13 +28,22 @@ export class Queue<T> {
   private processor: TaskProcessor<T>;
   private readonly concurrency: number;
   private activeTasks: number = 0;
+  /**
+   * koishi 配置项
+   */
+  private config: Config;
+  /**
+   * koishi 日志
+   */
   private logger: Logger;
 
   constructor(
     processor: TaskProcessor<T>,
     options: QueueOptions = {},
+    config: Config,
     logger: Logger
   ) {
+    this.config = config;
     this.logger = logger;
     this.processor = processor;
     this.concurrency = options.concurrency || 1;
@@ -51,7 +61,7 @@ export class Queue<T> {
     };
 
     this.tasks.push(task);
-    console.log(`[任务添加] ID: ${task.id}`);
+    if (this.config.debug) this.logger.info(`[任务添加] ID: ${task.id}`);
 
     // 异步地尝试处理队列
     setTimeout(() => this._processQueue(), 0);
@@ -85,7 +95,7 @@ export class Queue<T> {
 
       this.activeTasks++;
       task.status = "processing";
-      console.log(`[任务开始] ID: ${task.id}`);
+      if (this.config.debug) this.logger.info(`[任务开始] ID: ${task.id}`);
 
       this._runTask(task);
     }
@@ -101,11 +111,12 @@ export class Queue<T> {
 
       // 任务成功
       task.status = "completed";
-      console.log(`[任务成功] ID: ${task.id}`);
+      if (this.config.debug) this.logger.info(`[任务成功] ID: ${task.id}`);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      console.error(`[任务失败] ID: ${task.id}, 错误: ${errorMessage}`);
+      if (this.config.debug)
+        this.logger.error(`[任务失败] ID: ${task.id}, 错误: ${errorMessage}`);
 
       // 任务失败，直接标记为 failed，不再重试
       task.status = "failed";

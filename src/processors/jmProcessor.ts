@@ -1,4 +1,5 @@
-import { h, Logger, Session } from "koishi";
+import { Config } from "..";
+import { h, Logger, Session, HTTP } from "koishi";
 import { readFile, rm } from "node:fs/promises";
 import { JMAppClient } from "../entity/JMAppClient";
 import { formatFileName, getFileInfo } from "../utils/Utils";
@@ -27,6 +28,8 @@ interface ProcessorConfig {
 // 导出创建处理器函数
 export const createJmProcessor = (
   processorConfig: ProcessorConfig,
+  http: HTTP,
+  config: Config,
   logger: Logger
 ) => {
   const {
@@ -44,7 +47,7 @@ export const createJmProcessor = (
     const { id, session, messageId } = payload; // id 现在是通用字段
 
     try {
-      const jmClient = new JMAppClient(root);
+      const jmClient = new JMAppClient(root, http, config, logger);
       let filePath: string | string[];
       let name: string;
       let ext: string;

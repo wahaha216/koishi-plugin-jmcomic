@@ -81,25 +81,12 @@ export const inject = {
   optional: ["notifier", "cron"],
 };
 
-export let http: HTTP;
-export let logger: Logger;
-export let retryCount: number;
-export let debug: boolean;
-export let concurrentDownloadLimit: number;
-export let concurrentDecodeLimit: number;
-
 export async function apply(ctx: Context, config: Config) {
-  http = ctx.http;
-  retryCount = config.retryCount;
-  debug = config.debug;
-  concurrentDownloadLimit = config.concurrentDownloadLimit;
-  concurrentDecodeLimit = config.concurrentDecodeLimit;
-
   // i18n
   ctx.i18n.define("en-US", require("./locales/en-US"));
   ctx.i18n.define("zh-CN", require("./locales/zh-CN"));
 
-  logger = ctx.logger("jmcomic");
+  const logger = ctx.logger("jmcomic");
 
   const root = join(ctx.baseDir, "data", "jmcomic");
 
@@ -138,12 +125,18 @@ export async function apply(ctx: Context, config: Config) {
   };
 
   // 使用导入的 createJmProcessor 函数来创建处理器实例
-  const jmProcessor = createJmProcessor(processorConfig, logger);
+  const jmProcessor = createJmProcessor(
+    processorConfig,
+    ctx.http,
+    config,
+    logger
+  );
 
   // 初始化一个队列实例，处理所有 JM 相关的下载任务
   const queue = new Queue<JmTaskPayload>(
     jmProcessor,
     { concurrency: config.concurrentQueueLimit || 1 },
+    config,
     logger
   );
 
@@ -200,7 +193,7 @@ export async function apply(ctx: Context, config: Config) {
         return;
       }
       try {
-        const jmClient = new JMAppClient(root);
+        const jmClient = new JMAppClient(root, ctx.http, config, logger);
         const album = await jmClient.getAlbumById(albumId);
         await session.send([
           h.quote(messageId),

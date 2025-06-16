@@ -1,3 +1,5 @@
+import { Config } from "..";
+import { Logger, HTTP } from "koishi";
 import { mkdir, readFile, rm } from "fs/promises";
 import { JMClientAbstract } from "../abstract/JMClientAbstract";
 import { JMPhotoAbstract } from "../abstract/JMPhotoAbstract";
@@ -12,15 +14,30 @@ import {
 import { JMHtmlAlbum } from "./JMHtmlAlbum";
 import { JMHtmlPhoto } from "./JMHtmlPhoto";
 import { archiverImage, decodeImage, saveImage } from "../utils/Image";
-import { logger, concurrentDecodeLimit, concurrentDownloadLimit } from "..";
 import { join } from "path";
 import { Recipe } from "muhammara";
 import sharp from "sharp";
 import { Directorys } from "../types";
 
 export class JMHtmlClient extends JMClientAbstract {
-  constructor(root: string) {
+  /**
+   * koishi 配置项
+   */
+  private config: Config;
+  /**
+   * koishi 日志
+   */
+  private logger: Logger;
+  /**
+   * koishi http
+   */
+  private http: HTTP;
+
+  constructor(root: string, http: HTTP, config: Config, logger: Logger) {
     super(root);
+    this.config = config;
+    this.logger = logger;
+    this.http = http;
   }
 
   public async login(username: string, password: string): Promise<IJMUser> {
@@ -57,9 +74,14 @@ export class JMHtmlClient extends JMClientAbstract {
 
   public async getAlbumById(id: string): Promise<JMHtmlAlbum> {
     const url = `https://18comic.vip/album/${id}`;
-    const html = await requestWithRetry<string>(url, "GET", {
-      responseType: "text",
-    });
+    const html = await requestWithRetry<string>(
+      url,
+      "GET",
+      { responseType: "text" },
+      this.http,
+      this.config,
+      this.logger
+    );
     if (html.includes("This album cannot be found.")) {
       throw new Error("Does not exist");
     }
@@ -80,9 +102,14 @@ export class JMHtmlClient extends JMClientAbstract {
 
   public async getPhotoById(id: string): Promise<JMHtmlPhoto> {
     const url = `https://18comic.vip/album/${id}`;
-    const html = await requestWithRetry<string>(url, "GET", {
-      responseType: "text",
-    });
+    const html = await requestWithRetry<string>(
+      url,
+      "GET",
+      { responseType: "text" },
+      this.http,
+      this.config,
+      this.logger
+    );
     if (html.includes("This album cannot be found.")) {
       throw new Error("Does not exist");
     }
@@ -133,12 +160,17 @@ export class JMHtmlClient extends JMClientAbstract {
           return !fileExists || !fileSize;
         })
         .map((image, index) => async () => {
-          const res = await requestWithRetry<ArrayBuffer>(urls[index], "GET", {
-            responseType: "arraybuffer",
-          });
+          const res = await requestWithRetry<ArrayBuffer>(
+            urls[index],
+            "GET",
+            { responseType: "arraybuffer" },
+            this.http,
+            this.config,
+            this.logger
+          );
           await saveImage(res, `${path}/${image}`);
         }),
-      concurrentDownloadLimit
+      this.config.concurrentDownloadLimit
     );
     this.decodeByPhoto(photo);
   }
@@ -173,14 +205,14 @@ export class JMHtmlClient extends JMClientAbstract {
         })
         .map((image, index) => async () => {
           const imagePath = `${path}/${image}`;
-          logger.info(`解密: ${imagePath}`);
+          this.logger.info(`解密: ${imagePath}`);
           const decodedImagePath = `${decodedPath}/${image}`;
           const imageBuffer = await readFile(imagePath);
           await decodeImage(imageBuffer, splitNumbers[index], decodedImagePath);
         }),
       10
     );
-    logger.info(`${id} 解密完成`);
+    this.logger.info(`${id} 解密完成`);
   }
 
   public async albumToPdf(
@@ -238,7 +270,7 @@ export class JMHtmlClient extends JMClientAbstract {
       directorys.push({ directory: `${path}/decoded`, destpath: false });
     }
     await archiverImage(directorys, `${path}/${zipName}.zip`, password, level);
-    logger.info(`${zipName}.zip 生成完成`);
+    this.logger.info(`${zipName}.zip 生成完成`);
     return `${path}/${zipName}.zip`;
   }
 
@@ -252,7 +284,7 @@ export class JMHtmlClient extends JMClientAbstract {
   ): Promise<string> {
     const images = photo.getImages();
     const id = photo.getId();
-    logger.info(`开始生成PDF ${pdfName}.pdf`);
+    this.logger.info(`开始生成PDF ${pdfName}.pdf`);
     pdfName = sanitizeFileName(pdfName);
 
     let path = join(this.root, type, `${id}`);
@@ -309,7 +341,7 @@ export class JMHtmlClient extends JMClientAbstract {
     }
     try {
       pdfDoc.endPDF(() => {
-        logger.info(`${pdfName}.pdf 生成完成`);
+        this.logger.info(`${pdfName}.pdf 生成完成`);
       });
     } catch (error) {
       throw new Error(error);
@@ -336,7 +368,7 @@ export class JMHtmlClient extends JMClientAbstract {
       password,
       level
     );
-    logger.info(`${zipName}.zip 生成完成`);
+    this.logger.info(`${zipName}.zip 生成完成`);
     return `${path}/${zipName}.zip`;
   }
 }

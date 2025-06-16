@@ -1,8 +1,8 @@
 import { statSync, accessSync, constants } from "fs";
 import { readdir, stat, rm } from "fs/promises";
-import { http, logger, retryCount } from "..";
+import { Config } from "..";
 import { JUMP_URL, URL_LOCATION } from "./Regexp";
-import { HTTP } from "koishi";
+import { HTTP, Logger } from "koishi";
 import { IJMResponse } from "../types/JMClient";
 import { JM_CLIENT_URL_LIST, JM_IMAGE_URL_LIST } from "./Const";
 import { normalize, parse } from "path";
@@ -64,7 +64,7 @@ export function sanitizeFileName(fileName: string) {
  * 从github获取最新的JM域名
  * @returns 域名列表
  */
-export async function getDomainFromGithub() {
+export async function getDomainFromGithub(http: HTTP) {
   const url = "https://jmcmomic.github.io";
   const html = await http.get<string>(url);
   const matchs = html.matchAll(URL_LOCATION);
@@ -129,6 +129,9 @@ export async function requestWithRetry<T = IJMResponse>(
   url: string,
   method: "GET" | "POST",
   config: HTTP.RequestConfig = {},
+  http: HTTP,
+  pluginsConfig: Config,
+  logger: Logger,
   retryIndex: number = 0
 ) {
   try {
@@ -143,11 +146,21 @@ export async function requestWithRetry<T = IJMResponse>(
   } catch (error) {
     if (error instanceof MySqlError) {
       throw new MySqlError();
-    } else if (retryIndex < retryCount) {
+    } else if (retryIndex < pluginsConfig.retryCount) {
       logger.info(
-        `${url} 请求失败，正在重试... ${retryIndex + 1}/${retryCount}`
+        `${url} 请求失败，正在重试... ${retryIndex + 1}/${
+          pluginsConfig.retryCount
+        }`
       );
-      return await requestWithRetry<T>(url, method, config, retryIndex + 1);
+      return await requestWithRetry<T>(
+        url,
+        method,
+        config,
+        http,
+        pluginsConfig,
+        logger,
+        retryIndex + 1
+      );
     } else {
       throw new OverRetryError(`请求失败，超过最大重试次数: ${url}`);
     }
@@ -166,6 +179,9 @@ export async function requestWithUrlSwitch<T = IJMResponse>(
   url: string,
   method: "GET" | "POST",
   config: HTTP.RequestConfig = {},
+  http: HTTP,
+  pluginsConfig: Config,
+  logger: Logger,
   type: "IMAGE" | "CLIENT" = "CLIENT",
   urlIndex: number = 0
 ) {
@@ -177,7 +193,14 @@ export async function requestWithUrlSwitch<T = IJMResponse>(
   }
   try {
     if (urlIndex < urlCount) {
-      const res = await requestWithRetry<T>(url, method, config);
+      const res = await requestWithRetry<T>(
+        url,
+        method,
+        config,
+        http,
+        pluginsConfig,
+        logger
+      );
       if (res instanceof ArrayBuffer && res.byteLength === 0) {
         throw new EmptyBufferError();
       }
@@ -195,6 +218,9 @@ export async function requestWithUrlSwitch<T = IJMResponse>(
         url_bak,
         method,
         config,
+        http,
+        pluginsConfig,
+        logger,
         type,
         urlIndex + 1
       );

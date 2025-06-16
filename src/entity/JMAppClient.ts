@@ -1,10 +1,5 @@
-import {
-  debug,
-  http,
-  logger,
-  concurrentDecodeLimit,
-  concurrentDownloadLimit,
-} from "..";
+import { Config } from "..";
+import { Logger, HTTP } from "koishi";
 import { createHash, createDecipheriv } from "crypto";
 import FormData from "form-data";
 import { IJMAlbum, IJMUser, IJMPhoto, IJMResponse } from "../types/JMClient";
@@ -33,9 +28,24 @@ export class JMAppClient extends JMClientAbstract {
   static APP_TOKEN_SECRET = "18comicAPP";
   static APP_TOKEN_SECRET_2 = "18comicAPPContent";
   static APP_DATA_SECRET = "185Hcomic3PAPP7R";
+  /**
+   * koishi 配置项
+   */
+  private config: Config;
+  /**
+   * koishi 日志
+   */
+  private logger: Logger;
+  /**
+   * koishi http
+   */
+  private http: HTTP;
 
-  constructor(root: string) {
+  constructor(root: string, http: HTTP, config: Config, logger: Logger) {
     super(root);
+    this.config = config;
+    this.logger = logger;
+    this.http = http;
   }
 
   /**
@@ -58,7 +68,7 @@ export class JMAppClient extends JMClientAbstract {
     formData.append("username", username);
     formData.append("password", password);
 
-    const res = await http.post<IJMResponse>(
+    const res = await this.http.post<IJMResponse>(
       "https://www.cdnmhws.cc/login",
       formData,
       { headers, responseType: "json" }
@@ -67,14 +77,21 @@ export class JMAppClient extends JMClientAbstract {
   }
 
   public async getAlbumById(id: string): Promise<JMAppAlbum> {
-    if (debug) logger.info(`获取本子(${id})信息`);
+    if (this.config.debug) this.logger.info(`获取本子(${id})信息`);
     const timestamp = this.getTimeStamp();
     const { token, tokenparam } = this.getTokenAndTokenParam(timestamp);
-    const res = await requestWithUrlSwitch("/album", "POST", {
-      params: { id },
-      headers: { token, tokenparam },
-      responseType: "json",
-    });
+    const res = await requestWithUrlSwitch(
+      "/album",
+      "POST",
+      {
+        params: { id },
+        headers: { token, tokenparam },
+        responseType: "json",
+      },
+      this.http,
+      this.config,
+      this.logger
+    );
     const album_json = this.decodeBase64<IJMAlbum>(res.data, timestamp);
     if (!album_json.name) throw new AlbumNotExistError();
     const album = JMAppAlbum.fromJson(album_json);
@@ -94,14 +111,21 @@ export class JMAppClient extends JMClientAbstract {
   }
 
   public async getPhotoById(id: string): Promise<JMAppPhoto> {
-    if (debug) logger.info(`获取章节(${id})信息`);
+    if (this.config.debug) this.logger.info(`获取章节(${id})信息`);
     const timestamp = this.getTimeStamp();
     const { token, tokenparam } = this.getTokenAndTokenParam(timestamp);
-    const res = await requestWithUrlSwitch("/chapter", "POST", {
-      params: { id },
-      headers: { token, tokenparam },
-      responseType: "json",
-    });
+    const res = await requestWithUrlSwitch(
+      "/chapter",
+      "POST",
+      {
+        params: { id },
+        headers: { token, tokenparam },
+        responseType: "json",
+      },
+      this.http,
+      this.config,
+      this.logger
+    );
     const photo_json = this.decodeBase64<IJMPhoto>(res.data, timestamp);
     if (!photo_json.name) throw new PhotoNotExistError();
     const photo = JMAppPhoto.fromJson(photo_json);
@@ -134,12 +158,12 @@ export class JMAppClient extends JMClientAbstract {
     const images = photo.getImages();
     const id = photo.getId();
     let path = `${this.root}/${type}/${id}/origin`;
-    if (debug) {
-      logger.info(`开始下载: ${id}`);
+    if (this.config.debug) {
+      this.logger.info(`开始下载: ${id}`);
       if (type === "album") {
-        logger.info(`单章节: ${single ? "是" : "否"}`);
-        logger.info(`子章节: ${albumId ? "是" : "否"}`);
-        logger.info(`本子ID: ${albumId}`);
+        this.logger.info(`单章节: ${single ? "是" : "否"}`);
+        this.logger.info(`子章节: ${albumId ? "是" : "否"}`);
+        this.logger.info(`本子ID: ${albumId}`);
       }
     }
     if (type === "album") {
@@ -149,7 +173,7 @@ export class JMAppClient extends JMClientAbstract {
         path = `${this.root}/${type}/${albumId}/origin/${id}`;
       }
     }
-    if (debug) logger.info(`存储目录：${path}`);
+    if (this.config.debug) this.logger.info(`存储目录：${path}`);
     await mkdir(path, { recursive: true });
     await limitPromiseAll(
       images
@@ -162,19 +186,22 @@ export class JMAppClient extends JMClientAbstract {
         })
         .map((image) => async () => {
           const url = `/media/photos/${id}/${image}`;
-          if (debug) logger.info(`下载图片：${url}`);
+          if (this.config.debug) this.logger.info(`下载图片：${url}`);
 
           const res = await requestWithUrlSwitch<ArrayBuffer>(
             url,
             "GET",
             { responseType: "arraybuffer" },
+            this.http,
+            this.config,
+            this.logger,
             "IMAGE"
           );
           await saveImage(res, `${path}/${image}`);
         }),
-      concurrentDownloadLimit
+      this.config.concurrentDownloadLimit
     );
-    if (debug) logger.info(`${id} 下载完成，开始解密图片`);
+    if (this.config.debug) this.logger.info(`${id} 下载完成，开始解密图片`);
     await this.decodeByPhoto(photo, type, albumId, single);
   }
 
@@ -209,14 +236,14 @@ export class JMAppClient extends JMClientAbstract {
         })
         .map((image, index) => async () => {
           const imagePath = `${path}/${image}`;
-          if (debug) logger.info(`解密图片：${imagePath}`);
+          if (this.config.debug) this.logger.info(`解密图片：${imagePath}`);
           const decodedImagePath = `${decodedPath}/${image}`;
           const imageBuffer = await readFile(imagePath);
           await decodeImage(imageBuffer, splitNumbers[index], decodedImagePath);
         }),
-      concurrentDecodeLimit
+      this.config.concurrentDecodeLimit
     );
-    logger.info(`${id} 解密完成`);
+    this.logger.info(`${id} 解密完成`);
   }
 
   public async albumToPdf(
@@ -266,7 +293,7 @@ export class JMAppClient extends JMClientAbstract {
   ): Promise<string> {
     const images = photo.getImages();
     const id = photo.getId();
-    if (debug) logger.info(`开始生成PDF ${pdfName}.pdf`);
+    if (this.config.debug) this.logger.info(`开始生成PDF ${pdfName}.pdf`);
     pdfName = sanitizeFileName(pdfName);
 
     let path = join(this.root, type, `${id}`);
@@ -324,7 +351,7 @@ export class JMAppClient extends JMClientAbstract {
     }
     try {
       pdfDoc.endPDF(() => {
-        if (debug) logger.info(`PDF ${pdfName}.pdf 生成完成`);
+        if (this.config.debug) this.logger.info(`PDF ${pdfName}.pdf 生成完成`);
       });
     } catch (error) {
       throw new Error(error);
@@ -360,7 +387,7 @@ export class JMAppClient extends JMClientAbstract {
       directorys.push({ directory: `${path}/decoded`, destpath: false });
     }
     await archiverImage(directorys, `${path}/${zipName}.zip`, password, level);
-    if (debug) logger.info(`ZIP ${zipName}.zip 生成完成`);
+    if (this.config.debug) this.logger.info(`ZIP ${zipName}.zip 生成完成`);
     return `${path}/${zipName}.zip`;
   }
 
@@ -380,7 +407,7 @@ export class JMAppClient extends JMClientAbstract {
       password,
       level
     );
-    if (debug) logger.info(`ZIP ${zipName}.zip 生成完成`);
+    if (this.config.debug) this.logger.info(`ZIP ${zipName}.zip 生成完成`);
     return `${path}/${zipName}.zip`;
   }
 
@@ -406,7 +433,10 @@ export class JMAppClient extends JMClientAbstract {
     const html = await requestWithUrlSwitch<string>(
       "/chapter_view_template",
       "POST",
-      { params: { id }, headers: { token, tokenparam }, responseType: "text" }
+      { params: { id }, headers: { token, tokenparam }, responseType: "text" },
+      this.http,
+      this.config,
+      this.logger
     );
     return parseInt(html.match(JM_SCRAMBLE_ID)[1]);
   }

@@ -25,15 +25,15 @@ commands:
         mysqlError: 已尝试所有备用地址，但是JM坏掉了
 _config:
   - $desc: 基础设置
-    url: JM域名
     sendMethod: 发送方式
     fileMethod: "文件获取方式<br>`buffer`: 读取成buffer后发送给bot实现端<br>`file`: 以`file:///` 本地路径形式发送，如docker环境，请在bot实现端同时映射/koishi目录"
-    retryCount: 重试次数限制
     password: 密码，留空则不加密
     fileName: "文件名定义<br>`{{name}}`：标题<br>`{{id}}`：章节或者本子ID<br>`{{index}}`：多章节本子自动填充`1` 、 `2`"
+  - level: 压缩级别，0~9，0为仅存储
+  - $desc: 限制相关设置
+    retryCount: 重试次数限制
     concurrentDownloadLimit: 同时下载数量限制
     concurrentDecodeLimit: 同时解密数量限制
-  - level: 压缩级别，0~9，0为仅存储
   - $desc: 缓存设置
     cache: 缓存文件
   - autoDelete: 自动删除缓存，**依赖cron服务**

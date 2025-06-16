@@ -34,21 +34,10 @@ export interface Config {
 
 export const Config: Schema<Config> = Schema.intersect([
   Schema.object({
-    retryCount: Schema.number().min(1).max(5).default(5),
-    sendMethod: Schema.union(["zip", "pdf"]).default("pdf"),
     fileMethod: Schema.union(["buffer", "file"]).default("buffer"),
     password: Schema.string(),
     fileName: Schema.string().default("{{name}} ({{id}})_{{index}}"),
-    concurrentDownloadLimit: Schema.number()
-      .min(0)
-      .max(20)
-      .default(10)
-      .role("slider"),
-    concurrentDecodeLimit: Schema.number()
-      .min(0)
-      .max(20)
-      .default(5)
-      .role("slider"),
+    sendMethod: Schema.union(["zip", "pdf"]).default("pdf"),
   }),
   Schema.union([
     Schema.object({
@@ -57,6 +46,11 @@ export const Config: Schema<Config> = Schema.intersect([
     }),
     Schema.object({}),
   ]),
+  Schema.object({
+    retryCount: Schema.number().min(1).max(5).default(5),
+    concurrentDownloadLimit: Schema.number().min(0).max(20).default(10),
+    concurrentDecodeLimit: Schema.number().min(0).max(20).default(5),
+  }),
   Schema.object({
     cache: Schema.boolean().default(false),
   }),

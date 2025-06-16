@@ -25,6 +25,20 @@ commands:
         addedToQueue: 已将 {id} 添加到处理队列，请稍候。
         notExistError: 找不到该ID对应的章节
         mysqlError: 已尝试所有备用地址，但是JM坏掉了
+    queue:
+      examples: jm queue
+      messages:
+        emptyQueue: 当前没有正在处理或者等待处理的任务
+        msgFormat: "ID: {id}, 类型: {type}, 状态: {status}\n"
+        task:
+          pending: 等待中...
+          processing: 处理中...
+          failed: 发生未知错误
+          completed: 已完成
+          unknown: 未定义状态
+        type:
+          album: 本子
+          photo: 章节
 _config:
   - $desc: 基础设置
     sendMethod: 发送方式

@@ -221,4 +221,46 @@ export async function apply(ctx: Context, config: Config) {
         }
       }
     });
+
+  ctx
+    .command("jm.queue")
+    .alias("本子队列")
+    .action(async ({ session, options }) => {
+      const messageId = session.messageId;
+      // 所有任务
+      const allTasks = queue.getAllTasks();
+      // 过滤状态不是完成的任务
+      const pendingOrProcessingTasks = allTasks.filter(
+        (task) => task.status !== "completed"
+      );
+      if (pendingOrProcessingTasks.length === 0) {
+        await session.send([
+          h.quote(messageId),
+          h.text(session.text(".emptyQueue")),
+        ]);
+        return;
+      }
+
+      // 状态转义
+      const statusMap: Record<string, string> = {
+        pending: session.text(".task.pending"),
+        processing: session.text(".task.processing"),
+        failed: session.text(".task.failed"),
+      };
+      // 类型转义
+      const typeMap: Record<string, string> = {
+        album: session.text(".type.album"),
+        photo: session.text(".type.photo"),
+      };
+      const taskInfos = pendingOrProcessingTasks.map((task) => {
+        return h.text(
+          session.text(".msgFormat", {
+            id: task.payload.id,
+            type: typeMap[task.payload.type],
+            status: statusMap[task.status],
+          })
+        );
+      });
+      await session.send([h.quote(messageId), ...taskInfos]);
+    });
 }

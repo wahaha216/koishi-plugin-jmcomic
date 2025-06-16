@@ -25,6 +25,20 @@ commands:
         addedToQueue: Photo {id} has been added to the processing queue. Please wait.
         notExistError: photoID not found
         mysqlError: All alternate addresses have been tried. But no response.
+    queue:
+      examples: jm queue
+      messages:
+        emptyQueue: There are currently no tasks being processed or waiting.
+        msgFormat: "ID: {id}, type: {type}, status: {status}\n"
+        task:
+          Pending: Pending...
+          Processing: Processing...
+          failed: Failed (Unknown Error)
+          completed: Completed
+          unknown: Unknown Status
+        type:
+          album: Album
+          photo: Photo
 _config:
   - $desc: Basic settings
     sendMethod: Send method

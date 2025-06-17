@@ -10,6 +10,7 @@
 jm album xxxxxx
 jm album info xxxxxx
 jm photo xxxxxx
+jm queue
 ```
 
 可在配置中配置是发送 PDF 还是 ZIP 压缩包，支持加密。
@@ -17,18 +18,22 @@ jm photo xxxxxx
 ## 更新日志
 
 <details>
+<summary>0.1.1</summary>
+
+1. 添加队列时返回队列信息
+2. 提取代码
+
+</details>
+
+<details>
 <summary>0.1.0</summary>
-1.队列系统
 
-2.下载并发与解密并发限制
-
-3.修改配置页面顺序、分类
-
-4.不再直接暴露变量，改为逐级传递
-
-5.统一暴露Error类
-
-6.添加域名切换条件
+1. 队列系统
+2. 下载并发与解密并发限制
+3. 修改配置页面顺序、分类
+4. 不再直接暴露变量，改为逐级传递
+5. 统一暴露Error类
+6. 添加域名切换条件
 
 </details>
 
@@ -44,9 +49,9 @@ jm photo xxxxxx
 
 <details>
 <summary>0.0.4</summary>
-1.文件名移除前后空格
 
-2.新增文件发送配置，用于配置文件是以 buffer 读取后发送还是以本地地址的形式发送。docker 中使用 file 形式需要在 bot 实现端同时映射/koishi 目录
+1. 文件名移除前后空格
+2. 新增文件发送配置，用于配置文件是以 buffer 读取后发送还是以本地地址的形式发送。docker 中使用 file 形式需要在 bot 实现端同时映射/koishi 目录
 
 </details>
 

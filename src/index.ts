@@ -153,11 +153,27 @@ export async function apply(ctx: Context, config: Config) {
         return;
       }
       // 添加 album 任务到队列
-      queue.add({ type: "album", id: albumId, session, messageId });
-      await session.send([
-        h.quote(messageId),
-        h.text(session.text(".addedToQueue", { id: albumId })),
-      ]);
+      const { task, pendingAhead, queuePosition } = queue.add({
+        type: "album",
+        id: albumId,
+        session,
+        messageId,
+      });
+      const params = {
+        id: albumId,
+        ahead: pendingAhead,
+        pos: queuePosition,
+        status: task.status,
+      };
+      const msg: h.Fragment = [h.quote(messageId)];
+      if (pendingAhead === 0 && queuePosition === 1) {
+        msg.push(h.text(session.text(".queueFirst", params)));
+      } else if (pendingAhead > 0) {
+        msg.push(h.text(session.text(".queuePosition", params)));
+      } else {
+        msg.push(h.text(session.text(".queueProcessing", params)));
+      }
+      await session.send(msg);
     });
 
   ctx
@@ -173,11 +189,27 @@ export async function apply(ctx: Context, config: Config) {
         return;
       }
       // 添加 photo 任务到队列
-      queue.add({ type: "album", id: photoId, session, messageId });
-      await session.send([
-        h.quote(messageId),
-        h.text(session.text(".addedToQueue", { id: photoId })),
-      ]);
+      const { task, pendingAhead, queuePosition } = queue.add({
+        type: "album",
+        id: photoId,
+        session,
+        messageId,
+      });
+      const params = {
+        id: photoId,
+        ahead: pendingAhead,
+        pos: queuePosition,
+        status: task.status,
+      };
+      const msg: h.Fragment = [h.quote(messageId)];
+      if (pendingAhead === 0 && queuePosition === 1) {
+        msg.push(h.text(session.text(".queueFirst", params)));
+      } else if (pendingAhead > 0) {
+        msg.push(h.text(session.text(".queuePosition", params)));
+      } else {
+        msg.push(h.text(session.text(".queueProcessing", params)));
+      }
+      await session.send(msg);
     });
 
   ctx

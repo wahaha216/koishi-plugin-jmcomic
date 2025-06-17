@@ -30,6 +30,13 @@ interface QueueOptions {
   concurrency?: number;
 }
 
+// 任务添加结果，包含任务本身和其排队信息
+interface AddTaskResult {
+  task: Task;
+  pendingAhead: number; // 当前任务前面有多少个待处理任务
+  queuePosition: number; // 当前任务在队列中的位置 (1-based index)
+}
+
 export class Queue {
   private tasks: Task[] = [];
   private processor: TaskProcessor;
@@ -59,7 +66,7 @@ export class Queue {
   /**
    * 向队列添加一个新任务
    */
-  public add(payload: JmTaskPayload): Task {
+  public add(payload: JmTaskPayload): AddTaskResult {
     const task: Task = {
       id: randomUUID(),
       payload,
@@ -73,10 +80,13 @@ export class Queue {
         `[任务添加] 任务ID: ${payload} 类型: ${payload.type} ID: ${payload.id}`
       );
 
+    // 计算当前任务的排队信息
+    const { pendingAhead, queuePosition } = this.getTaskQueuePosition(task.id);
+
     // 异步地尝试处理队列
     setTimeout(() => this._processQueue(), 0);
 
-    return task;
+    return { task, pendingAhead, queuePosition };
   }
 
   /**
@@ -94,14 +104,51 @@ export class Queue {
   }
 
   /**
+   * 获取指定任务在队列中的位置信息
+   * @param taskId 任务ID
+   * @returns {pendingAhead: number, queuePosition: number}
+   * pendingAhead: 在此任务之前有多少个待处理任务
+   * queuePosition: 此任务在所有待处理任务中的位置（从1开始）
+   */
+  public getTaskQueuePosition(taskId: string): {
+    pendingAhead: number;
+    queuePosition: number;
+  } {
+    let pendingAhead = 0;
+    let queuePosition = 0; // 默认0，表示未找到或不在待处理队列
+    let found = false;
+
+    for (let i = 0; i < this.tasks.length; i++) {
+      const currentTask = this.tasks[i];
+      if (currentTask.id === taskId) {
+        found = true;
+        // 如果找到当前任务，且它是待处理或处理中状态，那么它的排位就是前面待处理/处理中的任务数 + 1
+        if (currentTask.status === 'pending' || currentTask.status === 'processing') {
+          queuePosition = pendingAhead + 1;
+        }
+        break; // 找到并计算完后即可退出循环
+      }
+      // 计算待处理和处理中的任务
+      if (currentTask.status === 'pending' || currentTask.status === 'processing') {
+        pendingAhead++;
+      }
+    }
+
+    if (!found) {
+      // 任务不存在或已处理完毕（不在tasks列表中），可以根据需求返回-1或其他值
+      return { pendingAhead: -1, queuePosition: -1 }; // 表示未找到或不适用
+    }
+
+    return { pendingAhead, queuePosition };
+  }
+
+  /**
    * 检查并处理队列中的任务
    */
   private _processQueue(): void {
     while (this.activeTasks < this.concurrency) {
       const task = this.tasks.find((t) => t.status === "pending");
-      if (!task) {
-        break; // 没有待处理任务
-      }
+      if (!task) break; // 没有待处理任务
 
       this.activeTasks++;
       task.status = "processing";

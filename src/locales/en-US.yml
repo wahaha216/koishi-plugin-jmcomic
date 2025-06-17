@@ -10,6 +10,9 @@ commands:
         jm album albumID
       messages:
         addedToQueue: Album {id} has been added to the processing queue. Please wait.
+        queueFirst: "Added {id} to the processing queue, starting shortly."
+        queuePosition: "Added {id} to the processing queue.\nThere are {ahead} tasks ahead or currently processing."
+        queueProcessing: "Added {id} to the processing queue.\nCurrent task status: {status}"
         notExistError: albumID not found
         mysqlError: All alternate addresses have been tried. But no response.
       info:
@@ -23,6 +26,9 @@ commands:
         jm photo photoID
       messages:
         addedToQueue: Photo {id} has been added to the processing queue. Please wait.
+        queueFirst: "Added {id} to the processing queue, starting shortly."
+        queuePosition: "Added {id} to the processing queue.\nThere are {ahead} tasks ahead or currently processing."
+        queueProcessing: "Added {id} to the processing queue.\nCurrent task status: {status}"
         notExistError: photoID not found
         mysqlError: All alternate addresses have been tried. But no response.
     queue:

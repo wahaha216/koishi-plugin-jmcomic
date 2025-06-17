@@ -1,12 +1,12 @@
-import { Context, h, HTTP, Logger, Schema } from "koishi";
+import { Context, h, Session, Schema } from "koishi";
 import { join } from "path";
 import { deleteFewDaysAgoFolders } from "./utils/Utils";
 import { JMAppClient } from "./entity/JMAppClient";
+import { AlbumNotExistError, MySqlError } from "./error";
+import { createJmProcessor } from "./processors/jmProcessor";
+import { Queue } from "./utils/Queue";
 import {} from "@koishijs/plugin-notifier";
 import {} from "koishi-plugin-cron";
-import { AlbumNotExistError, MySqlError } from "./error";
-import { createJmProcessor, JmTaskPayload } from "./processors/jmProcessor";
-import { Queue } from "./utils/Queue";
 
 export const name = "jmcomic";
 
@@ -140,76 +140,51 @@ export async function apply(ctx: Context, config: Config) {
     logger
   );
 
+  const handleAlbumOrPhoto = async (session: Session, id: string) => {
+    const messageId = session.messageId;
+    if (!/^\d+$/.test(id)) {
+      await session.send([
+        h.quote(messageId),
+        h.text("输入的ID不合法，请检查"),
+      ]);
+      return;
+    }
+    // 添加任务到队列
+    const { task, pendingAhead, queuePosition } = queue.add({
+      type: "album",
+      id: id,
+      session,
+      messageId,
+    });
+    const params = {
+      id: id,
+      ahead: pendingAhead,
+      pos: queuePosition,
+      status: task.status,
+    };
+    const msg: h.Fragment = [h.quote(messageId)];
+    if (pendingAhead === 0 && queuePosition === 1) {
+      msg.push(h.text(session.text(".queueFirst", params)));
+    } else if (pendingAhead > 0) {
+      msg.push(h.text(session.text(".queuePosition", params)));
+    } else {
+      msg.push(h.text(session.text(".queueProcessing", params)));
+    }
+    await session.send(msg);
+  };
+
   ctx
     .command("jm.album <albumId:string>")
     .alias("本子")
     .action(async ({ session, options }, albumId) => {
-      const messageId = session.messageId;
-      if (!/^\d+$/.test(albumId)) {
-        await session.send([
-          h.quote(messageId),
-          h.text("输入的ID不合法，请检查"),
-        ]);
-        return;
-      }
-      // 添加 album 任务到队列
-      const { task, pendingAhead, queuePosition } = queue.add({
-        type: "album",
-        id: albumId,
-        session,
-        messageId,
-      });
-      const params = {
-        id: albumId,
-        ahead: pendingAhead,
-        pos: queuePosition,
-        status: task.status,
-      };
-      const msg: h.Fragment = [h.quote(messageId)];
-      if (pendingAhead === 0 && queuePosition === 1) {
-        msg.push(h.text(session.text(".queueFirst", params)));
-      } else if (pendingAhead > 0) {
-        msg.push(h.text(session.text(".queuePosition", params)));
-      } else {
-        msg.push(h.text(session.text(".queueProcessing", params)));
-      }
-      await session.send(msg);
+      await handleAlbumOrPhoto(session, albumId);
     });
 
   ctx
     .command("jm.photo <photoId:string>")
     .alias("本子章节")
     .action(async ({ session }, photoId) => {
-      const messageId = session.messageId;
-      if (!/^\d+$/.test(photoId)) {
-        await session.send([
-          h.quote(messageId),
-          h.text("输入的ID不合法，请检查"),
-        ]);
-        return;
-      }
-      // 添加 photo 任务到队列
-      const { task, pendingAhead, queuePosition } = queue.add({
-        type: "album",
-        id: photoId,
-        session,
-        messageId,
-      });
-      const params = {
-        id: photoId,
-        ahead: pendingAhead,
-        pos: queuePosition,
-        status: task.status,
-      };
-      const msg: h.Fragment = [h.quote(messageId)];
-      if (pendingAhead === 0 && queuePosition === 1) {
-        msg.push(h.text(session.text(".queueFirst", params)));
-      } else if (pendingAhead > 0) {
-        msg.push(h.text(session.text(".queuePosition", params)));
-      } else {
-        msg.push(h.text(session.text(".queueProcessing", params)));
-      }
-      await session.send(msg);
+      await handleAlbumOrPhoto(session, photoId);
     });
 
   ctx

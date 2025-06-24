@@ -18,6 +18,14 @@ jm queue
 ## 更新日志
 
 <details>
+<summary>0.2.1</summary>
+
+1. 搜索分页限制
+2. 搜索结果分割空行
+
+</details>
+
+<details>
 <summary>0.2.0</summary>
 
 1. 简易搜索功能

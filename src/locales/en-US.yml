@@ -54,6 +54,7 @@ commands:
         author: author
         category: category
         description: description
+        pagination: Total {total}, current {page} page, each page {pageSize}
 _config:
   - $desc: Basic settings
     sendMethod: Send method

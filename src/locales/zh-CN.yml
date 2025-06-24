@@ -54,6 +54,7 @@ commands:
         author: 作者
         category: 分类
         description: 描述
+        pagination: 共 {total} 条, 当前第 {page} 页, 每页 {pageSize} 条
 _config:
   - $desc: 基础设置
     sendMethod: 发送方式

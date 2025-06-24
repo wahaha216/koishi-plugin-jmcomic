@@ -237,6 +237,8 @@ export async function apply(ctx: Context, config: Config) {
   ctx
     .command("jm.search <keyword:string>")
     .alias("本子搜索")
+    .option("page", "-p <page:number>", { fallback: 1 })
+    .option("limit", "-l <limit:number>", { fallback: 10 })
     .action(async ({ session, options }, keyword) => {
       const messageId = session.messageId;
       if (!keyword) {
@@ -249,19 +251,31 @@ export async function apply(ctx: Context, config: Config) {
       try {
         const jmClient = new JMAppClient(root, ctx.http, config, logger);
         const searchResult = await jmClient.search(keyword);
-        console.log(JSON.stringify(searchResult));
-        
         const contents = searchResult.content;
         const fragment: h.Fragment = [h.quote(messageId)];
-        contents.forEach((content) => {
+        // 计算起始和结束索引
+        const page = options.page > 0 ? options.page : 1;
+        const pageSize = options.limit > 0 ? options.limit : 10;
+        const startIndex = (page - 1) * pageSize;
+        const endIndex = page * pageSize;
+        contents.slice(startIndex, endIndex).forEach((content) => {
           fragment.push(`${session.text(".id")}: ${content.id}\n`);
           fragment.push(`${session.text(".name")}: ${content.name}\n`);
           fragment.push(`${session.text(".author")}: ${content.author}\n`);
-          fragment.push(`${session.text(".category")}: ${content.category.title}\n`);
           fragment.push(
-            `${session.text(".description")}: ${content.description}\n`
+            `${session.text(".category")}: ${content.category.title}\n`
+          );
+          fragment.push(
+            `${session.text(".description")}: ${content.description}\n\n`
           );
         });
+        fragment.push(
+          session.text(".pagination", {
+            total: contents.length,
+            page,
+            pageSize,
+          })
+        );
         await session.send(fragment);
       } catch (error) {
         if (error instanceof AlbumNotExistError) {

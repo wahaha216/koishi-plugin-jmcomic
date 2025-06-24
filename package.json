@@ -1,7 +1,7 @@
 {
   "name": "@wahaha216/koishi-plugin-jmcomic",
   "description": "下载JM本子，无需python。支持pdf、zip加密。",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [

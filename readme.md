@@ -18,6 +18,14 @@ jm queue
 ## 更新日志
 
 <details>
+<summary>0.2.0</summary>
+
+1. 简易搜索功能
+2. 修复队列丢失i18n key的问题
+
+</details>
+
+<details>
 <summary>0.1.1</summary>
 
 1. 添加队列时返回队列信息

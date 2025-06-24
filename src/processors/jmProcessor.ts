@@ -11,6 +11,7 @@ export type JmTaskPayload = {
   id: string; // albumId 或 photoId
   session: Session;
   messageId: string;
+  scope: string;
 };
 
 // 定义处理器需要的配置类型，与之前相同
@@ -44,7 +45,7 @@ export const createJmProcessor = (
   } = processorConfig;
 
   return async (payload: JmTaskPayload): Promise<void> => {
-    const { id, session, messageId } = payload; // id 现在是通用字段
+    const { id, session, messageId, scope } = payload; // id 现在是通用字段
 
     try {
       const jmClient = new JMAppClient(root, http, config, logger);
@@ -167,12 +168,12 @@ export const createJmProcessor = (
       ) {
         await session.send([
           h.quote(messageId),
-          h.text(session.text(".notExistError")), // 假设 .notExistError 可以通用
+          h.text(session.text(`${scope}.notExistError`)), // 假设 .notExistError 可以通用
         ]);
       } else if (error instanceof MySqlError) {
         await session.send([
           h.quote(messageId),
-          h.text(session.text(".mysqlError")),
+          h.text(session.text(`${scope}.mysqlError`)),
         ]);
       } else {
         // logger.error(`处理任务 ID: ${id} 时发生未知错误:`, error);

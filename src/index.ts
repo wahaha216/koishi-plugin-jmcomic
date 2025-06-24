@@ -159,6 +159,7 @@ export async function apply(ctx: Context, config: Config) {
       id,
       session,
       messageId,
+      scope: session.scope,
     });
     const params = {
       id,
@@ -249,16 +250,14 @@ export async function apply(ctx: Context, config: Config) {
         const jmClient = new JMAppClient(root, ctx.http, config, logger);
         const searchResult = await jmClient.search(keyword);
         console.log(JSON.stringify(searchResult));
-
+        
         const contents = searchResult.content;
         const fragment: h.Fragment = [h.quote(messageId)];
         contents.forEach((content) => {
           fragment.push(`${session.text(".id")}: ${content.id}\n`);
           fragment.push(`${session.text(".name")}: ${content.name}\n`);
           fragment.push(`${session.text(".author")}: ${content.author}\n`);
-          fragment.push(
-            `${session.text(".category")}: ${content.category.title}\n`
-          );
+          fragment.push(`${session.text(".category")}: ${content.category.title}\n`);
           fragment.push(
             `${session.text(".description")}: ${content.description}\n`
           );

@@ -3,7 +3,7 @@ import { Logger, HTTP } from "koishi";
 import { mkdir, readFile, rm } from "fs/promises";
 import { JMClientAbstract } from "../abstract/JMClientAbstract";
 import { JMPhotoAbstract } from "../abstract/JMPhotoAbstract";
-import { IJMUser } from "../types/JMClient";
+import { IJMSearchResult, IJMUser } from "../types/JMClient";
 import {
   fileExistsAsync,
   fileSizeAsync,
@@ -70,6 +70,10 @@ export class JMHtmlClient extends JMClientAbstract {
       jwttoken: "",
     };
     return user;
+  }
+
+  public async search(keyword: string): Promise<IJMSearchResult> {
+    return { search_query: "", total: "0", content: [] };
   }
 
   public async getAlbumById(id: string): Promise<JMHtmlAlbum> {

@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { IJMUser } from "../types/JMClient";
+import { IJMSearchResult, IJMUser } from "../types/JMClient";
 import { JMPhotoAbstract } from "./JMPhotoAbstract";
 import { JMAlbumAbstract } from "./JMAlbumAbstract";
 
@@ -25,6 +25,13 @@ export abstract class JMClientAbstract {
    * @returns JM用户信息
    */
   abstract login(username: string, password: string): Promise<IJMUser>;
+
+  /**
+   * JM搜索
+   * @param keyword 关键词
+   * @returns JM搜索结果
+   */
+  abstract search(keyword: string): Promise<IJMSearchResult>;
 
   /**
    * 根据本子ID获取本子信息

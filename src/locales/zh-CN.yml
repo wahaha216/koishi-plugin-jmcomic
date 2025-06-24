@@ -45,6 +45,15 @@ commands:
         type:
           album: 本子
           photo: 章节
+    search:
+      example: jm search <关键词>
+      messages:
+        emptyKeywordError: 请输入搜索关键词
+        id: JMID
+        name: 名称
+        author: 作者
+        category: 分类
+        description: 描述
 _config:
   - $desc: 基础设置
     sendMethod: 发送方式

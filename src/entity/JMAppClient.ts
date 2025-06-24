@@ -2,7 +2,13 @@ import { Config } from "..";
 import { Logger, HTTP } from "koishi";
 import { createHash, createDecipheriv } from "crypto";
 import FormData from "form-data";
-import { IJMAlbum, IJMUser, IJMPhoto, IJMResponse } from "../types/JMClient";
+import {
+  IJMAlbum,
+  IJMUser,
+  IJMPhoto,
+  IJMResponse,
+  IJMSearchResult,
+} from "../types/JMClient";
 import { JM_SCRAMBLE_ID } from "../utils/Regexp";
 import { JMClientAbstract } from "../abstract/JMClientAbstract";
 import { JMAppPhoto } from "./JMAppPhoto";
@@ -74,6 +80,25 @@ export class JMAppClient extends JMClientAbstract {
       { headers, responseType: "json" }
     );
     return this.decodeBase64<IJMUser>(res.data, timestamp);
+  }
+
+  public async search(keyword: string): Promise<IJMSearchResult> {
+    if (this.config.debug) this.logger.info(`搜索本子: ${keyword}`);
+    const timestamp = this.getTimeStamp();
+    const { token, tokenparam } = this.getTokenAndTokenParam(timestamp);
+    const searchRes = await requestWithUrlSwitch(
+      "/search",
+      "POST",
+      {
+        params: { search_query: keyword },
+        headers: { token, tokenparam },
+        responseType: "json",
+      },
+      this.http,
+      this.config,
+      this.logger
+    );
+    return this.decodeBase64<IJMSearchResult>(searchRes.data, timestamp);
   }
 
   public async getAlbumById(id: string): Promise<JMAppAlbum> {

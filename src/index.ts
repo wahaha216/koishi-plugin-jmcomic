@@ -140,7 +140,11 @@ export async function apply(ctx: Context, config: Config) {
     logger
   );
 
-  const handleAlbumOrPhoto = async (session: Session, id: string) => {
+  const handleAlbumOrPhoto = async (
+    session: Session,
+    id: string,
+    type: "album" | "photo"
+  ) => {
     const messageId = session.messageId;
     if (!/^\d+$/.test(id)) {
       await session.send([
@@ -151,13 +155,13 @@ export async function apply(ctx: Context, config: Config) {
     }
     // 添加任务到队列
     const { task, pendingAhead, queuePosition } = queue.add({
-      type: "album",
-      id: id,
+      type,
+      id,
       session,
       messageId,
     });
     const params = {
-      id: id,
+      id,
       ahead: pendingAhead,
       pos: queuePosition,
       status: task.status,
@@ -177,14 +181,14 @@ export async function apply(ctx: Context, config: Config) {
     .command("jm.album <albumId:string>")
     .alias("本子")
     .action(async ({ session, options }, albumId) => {
-      await handleAlbumOrPhoto(session, albumId);
+      await handleAlbumOrPhoto(session, albumId, "album");
     });
 
   ctx
     .command("jm.photo <photoId:string>")
     .alias("本子章节")
     .action(async ({ session }, photoId) => {
-      await handleAlbumOrPhoto(session, photoId);
+      await handleAlbumOrPhoto(session, photoId, "photo");
     });
 
   ctx
@@ -212,6 +216,54 @@ export async function apply(ctx: Context, config: Config) {
           h.text(`点赞数：${album.getLikes()}\n`),
           h.text(`观看数：${album.getTotalViews()}`),
         ]);
+      } catch (error) {
+        if (error instanceof AlbumNotExistError) {
+          await session.send([
+            h.quote(messageId),
+            h.text(session.text(".notExistError")),
+          ]);
+        } else if (error instanceof MySqlError) {
+          await session.send([
+            h.quote(messageId),
+            h.text(session.text(".mysqlError")),
+          ]);
+        } else {
+          throw new Error(error);
+        }
+      }
+    });
+
+  ctx
+    .command("jm.search <keyword:string>")
+    .alias("本子搜索")
+    .action(async ({ session, options }, keyword) => {
+      const messageId = session.messageId;
+      if (!keyword) {
+        await session.send([
+          h.quote(messageId),
+          h.text(session.text(".emptyKeywordError")),
+        ]);
+        return;
+      }
+      try {
+        const jmClient = new JMAppClient(root, ctx.http, config, logger);
+        const searchResult = await jmClient.search(keyword);
+        console.log(JSON.stringify(searchResult));
+
+        const contents = searchResult.content;
+        const fragment: h.Fragment = [h.quote(messageId)];
+        contents.forEach((content) => {
+          fragment.push(`${session.text(".id")}: ${content.id}\n`);
+          fragment.push(`${session.text(".name")}: ${content.name}\n`);
+          fragment.push(`${session.text(".author")}: ${content.author}\n`);
+          fragment.push(
+            `${session.text(".category")}: ${content.category.title}\n`
+          );
+          fragment.push(
+            `${session.text(".description")}: ${content.description}\n`
+          );
+        });
+        await session.send(fragment);
       } catch (error) {
         if (error instanceof AlbumNotExistError) {
           await session.send([

@@ -45,6 +45,15 @@ commands:
         type:
           album: Album
           photo: Photo
+    search:
+      example: jm search <keyword>
+      messages:
+        emptyKeywordError: Please enter search keywords
+        id: JMID
+        name: name
+        author: author
+        category: category
+        description: description
 _config:
   - $desc: Basic settings
     sendMethod: Send method

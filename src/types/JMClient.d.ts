@@ -81,3 +81,32 @@ export interface IJMPhoto {
   liked: boolean;
   scramble_id: number;
 }
+
+export interface IJMSearchCategory {
+  id: string;
+  title: "同人";
+}
+
+export interface IJMSearchCategorySub {
+  id: string;
+  title: "同人" | "单本" | null;
+}
+
+export interface IJMSearchContent {
+  id: string;
+  author: string;
+  description: string;
+  name: string;
+  image: string;
+  category: IJMSearchCategory;
+  category_sub: IJMSearchCategorySub;
+  liked: boolean;
+  is_favorite: boolean;
+  update_at: number;
+}
+
+export interface IJMSearchResult {
+  search_query: string;
+  total: string;
+  content: IJMSearchContent[];
+}

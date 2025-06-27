@@ -14,6 +14,11 @@ export async function decodeImage(
     const height = metadata.height || 0;
     const width = metadata.width || 0;
 
+    if (height < num) {
+      await sharp(Buffer.from(imageBuffer)).toFile(path);
+      return;
+    }
+
     // 计算余数
     const over = height % num;
     const move = Math.floor(height / num);

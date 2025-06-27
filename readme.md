@@ -18,6 +18,13 @@ jm queue
 ## 更新日志
 
 <details>
+<summary>0.2.2</summary>
+
+高度不足图片分割数时输出原图，尝试规避提取图片高度为0的情况
+
+</details>
+
+<details>
 <summary>0.2.1</summary>
 
 1. 搜索分页限制

@@ -396,24 +396,25 @@ export class JMAppClient extends JMClientAbstract {
     const series = album.getSeries();
     // 文件名合法化
     const zipName = sanitizeFileName(album.getName());
-    const path = `${this.root}/album/${id}`;
+    const path = join(this.root, "album", `${id}`);
     const directorys: Directorys[] = [];
     // 多章节本子
     if (series.length > 1) {
       for (const s of series) {
         directorys.push({
-          directory: `${path}/decoded/${s.id}`,
+          directory: join(path, "decoded", s.id),
           destpath: `第${s.sort}章`,
         });
       }
     }
     // 单章节本子
     else {
-      directorys.push({ directory: `${path}/decoded`, destpath: false });
+      directorys.push({ directory: join(path, "decoded"), destpath: false });
     }
-    await archiverImage(directorys, `${path}/${zipName}.zip`, password, level);
+    const zipPath = join(path, `${zipName}.zip`);
+    await archiverImage(directorys, zipPath, password, level);
     if (this.config.debug) this.logger.info(`ZIP ${zipName}.zip 生成完成`);
-    return `${path}/${zipName}.zip`;
+    return zipPath;
   }
 
   public async photoToZip(
@@ -425,15 +426,16 @@ export class JMAppClient extends JMClientAbstract {
     const id = photo.getId();
     // 文件名合法化
     zipName = sanitizeFileName(zipName);
-    const path = `${this.root}/photo/${id}`;
+    const path = join(this.root, "photo", `${id}`);
+    const zipPath = join(path, `${zipName}.zip`);
     await archiverImage(
-      [{ directory: `${path}/decoded`, destpath: false }],
-      `${path}/${zipName}.zip`,
+      [{ directory: join(path, "decoded"), destpath: false }],
+      zipPath,
       password,
       level
     );
     if (this.config.debug) this.logger.info(`ZIP ${zipName}.zip 生成完成`);
-    return `${path}/${zipName}.zip`;
+    return zipPath;
   }
 
   /**

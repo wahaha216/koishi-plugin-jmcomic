@@ -44,19 +44,22 @@ export function fileSizeAsync(path: string) {
  * @returns 合法化后的文件名
  */
 export function sanitizeFileName(fileName: string) {
-  // Windows 不允许的字符
-  const forbiddenChars = /[<>:"/\\|?*]/g;
-  // 替换不合法字符为下划线
-  fileName = fileName.replace(forbiddenChars, "_");
-  // 替换其他特殊字符（比如空格）为下划线
-  fileName = fileName.replace(/\s+/g, "_");
-  // 去除文件名末尾的空格或句点
-  fileName = fileName.replace(/[. ]+$/, "");
-  // 确保文件名长度不超过 Windows 最大文件名长度
-  // const maxLength = 255; // Windows 文件名最大长度
-  // if (fileName.length > maxLength) {
-  //   fileName = fileName.slice(0, maxLength);
-  // }
+  // 这些字符在Windows文件系统是禁止的，或者在Linux Shell中是特殊的、容易引起歧义的
+  // <>:"/\|?* - Windows 不允许的字符
+  // [](){}!#$&;'` - Linux Shell 特殊字符，以及一些其他可能引起问题的符号
+  const forbiddenAndShellSpecialChars = /[<>:"/\\|?*()[\]{}!#$&;'`~]/g;
+  // 替换不合法和Shell特殊字符为下划线
+  let sanitizedFileName = fileName.replace(forbiddenAndShellSpecialChars, "_");
+  // 将一个或多个连续的空白字符（包括空格、制表符等）替换为单个下划线
+  sanitizedFileName = sanitizedFileName.replace(/\s+/g, "_");
+  // 处理连续的下划线：将多个连续的下划线替换为单个下划线，避免文件名过长或不美观
+  sanitizedFileName = sanitizedFileName.replace(/_+/g, "_");
+  // 去除文件名开头和结尾的下划线或点，防止文件名以不安全的字符开始或结束
+  sanitizedFileName = sanitizedFileName.replace(/^[._]+|[._]+$/g, "");
+  // 确保文件名不为空。如果经过清理后文件名变为空，提供一个默认值
+  if (sanitizedFileName.trim() === "") {
+    return "untitled_document";
+  }
   return fileName;
 }
 

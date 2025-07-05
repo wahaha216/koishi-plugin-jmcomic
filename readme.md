@@ -18,6 +18,14 @@ jm queue
 ## 更新日志
 
 <details>
+<summary>0.2.3</summary>
+
+1. 将手动路径拼接替换为join
+2. 健壮文件名序列化，尝试修复部分文件名导致无法创建文件
+
+</details>
+
+<details>
 <summary>0.2.2</summary>
 
 高度不足图片分割数时输出原图，尝试规避提取图片高度为0的情况

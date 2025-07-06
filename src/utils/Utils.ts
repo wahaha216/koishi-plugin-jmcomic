@@ -56,10 +56,22 @@ export function sanitizeFileName(fileName: string) {
   sanitizedFileName = sanitizedFileName.replace(/_+/g, "_");
   // 去除文件名开头和结尾的下划线或点，防止文件名以不安全的字符开始或结束
   sanitizedFileName = sanitizedFileName.replace(/^[._]+|[._]+$/g, "");
+
+  // 计算文件名字节长度
+  let byteLength = Buffer.byteLength(sanitizedFileName, "utf-8");
+  // 如果当前字节数超过最大限制，则循环截断
+  while (byteLength > 200) {
+    const length = sanitizedFileName.length;
+    // 每次从末尾移除一个字符，直到字节数在安全范围内
+    sanitizedFileName = sanitizedFileName.substring(0, length - 1);
+    byteLength = Buffer.byteLength(sanitizedFileName, "utf8");
+  }
+
   // 确保文件名不为空。如果经过清理后文件名变为空，提供一个默认值
   if (sanitizedFileName.trim() === "") {
     return "untitled_document";
   }
+
   return sanitizedFileName;
 }
 

@@ -18,6 +18,14 @@ jm queue
 ## 更新日志
 
 <details>
+<summary>0.2.4</summary>
+
+1. 调整debug日志
+2. 修正文化名返回值
+
+</details>
+
+<details>
 <summary>0.2.3</summary>
 
 1. 将手动路径拼接替换为join

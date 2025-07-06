@@ -60,7 +60,7 @@ export function sanitizeFileName(fileName: string) {
   if (sanitizedFileName.trim() === "") {
     return "untitled_document";
   }
-  return fileName;
+  return sanitizedFileName;
 }
 
 /**

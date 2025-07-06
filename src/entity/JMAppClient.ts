@@ -318,8 +318,8 @@ export class JMAppClient extends JMClientAbstract {
   ): Promise<string> {
     const images = photo.getImages();
     const id = photo.getId();
-    if (this.config.debug) this.logger.info(`开始生成PDF ${pdfName}.pdf`);
     pdfName = sanitizeFileName(pdfName);
+    if (this.config.debug) this.logger.info(`开始生成PDF ${pdfName}.pdf`);
 
     let path = join(this.root, type, `${id}`);
     if (type === "album") {
@@ -396,6 +396,7 @@ export class JMAppClient extends JMClientAbstract {
     const series = album.getSeries();
     // 文件名合法化
     const zipName = sanitizeFileName(album.getName());
+    if (this.config.debug) this.logger.info(`开始生成ZIP ${zipName}.zip`);
     const path = join(this.root, "album", `${id}`);
     const directorys: Directorys[] = [];
     // 多章节本子
@@ -426,6 +427,7 @@ export class JMAppClient extends JMClientAbstract {
     const id = photo.getId();
     // 文件名合法化
     zipName = sanitizeFileName(zipName);
+    if (this.config.debug) this.logger.info(`开始生成ZIP ${zipName}.zip`);
     const path = join(this.root, "photo", `${id}`);
     const zipPath = join(path, `${zipName}.zip`);
     await archiverImage(

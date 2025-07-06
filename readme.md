@@ -18,9 +18,16 @@ jm queue
 ## 更新日志
 
 <details>
+<summary>0.2.5</summary>
+
+文件名过长时截断至 200 字节
+
+</details>
+
+<details>
 <summary>0.2.4</summary>
 
-1. 调整debug日志
+1. 调整 debug 日志
 2. 修正文化名返回值
 
 </details>
@@ -28,7 +35,7 @@ jm queue
 <details>
 <summary>0.2.3</summary>
 
-1. 将手动路径拼接替换为join
+1. 将手动路径拼接替换为 join
 2. 健壮文件名序列化，尝试修复部分文件名导致无法创建文件
 
 </details>
@@ -36,7 +43,7 @@ jm queue
 <details>
 <summary>0.2.2</summary>
 
-高度不足图片分割数时输出原图，尝试规避提取图片高度为0的情况
+高度不足图片分割数时输出原图，尝试规避提取图片高度为 0 的情况
 
 </details>
 
@@ -52,7 +59,7 @@ jm queue
 <summary>0.2.0</summary>
 
 1. 简易搜索功能
-2. 修复队列丢失i18n key的问题
+2. 修复队列丢失 i18n key 的问题
 
 </details>
 
@@ -71,7 +78,7 @@ jm queue
 2. 下载并发与解密并发限制
 3. 修改配置页面顺序、分类
 4. 不再直接暴露变量，改为逐级传递
-5. 统一暴露Error类
+5. 统一暴露 Error 类
 6. 添加域名切换条件
 
 </details>

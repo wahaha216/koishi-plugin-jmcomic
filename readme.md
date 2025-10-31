@@ -18,6 +18,13 @@ jm queue
 ## 更新日志
 
 <details>
+<summary>0.2.6</summary>
+
+添加监听聊天内容，检测到 `JMxxx` 时发送第一张图片（不是封面）
+
+</details>
+
+<details>
 <summary>0.2.5</summary>
 
 文件名过长时截断至 200 字节

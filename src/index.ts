@@ -7,10 +7,12 @@ import { createJmProcessor } from "./processors/jmProcessor";
 import { Queue } from "./utils/Queue";
 import {} from "@koishijs/plugin-notifier";
 import {} from "koishi-plugin-cron";
+import { readFile } from "fs/promises";
 
 export const name = "jmcomic";
 
 export interface Config {
+  listeningJMId?: boolean;
   sendMethod?: "zip" | "pdf";
   fileMethod?: "buffer" | "file";
   retryCount?: number;
@@ -42,6 +44,9 @@ export const Config: Schema<Config> = Schema.intersect([
     }),
     Schema.object({}),
   ]),
+  Schema.object({
+    listeningJMId: Schema.boolean().default(false),
+  }),
   Schema.object({
     retryCount: Schema.number().min(1).max(5).default(5),
     concurrentDownloadLimit: Schema.number().min(0).max(20).default(10),
@@ -335,4 +340,20 @@ export async function apply(ctx: Context, config: Config) {
       });
       await session.send([h.quote(messageId), ...taskInfos]);
     });
+
+  if (config.listeningJMId) {
+    ctx.on("message", async (session) => {
+      const text = session.content;
+      const regexp = /JM\d+/gi;
+      const numbers = text.match(regexp);
+      if (!numbers?.length) return;
+      const id = numbers[0];
+      const jmClient = new JMAppClient(root, ctx.http, config, logger);
+      const album = await jmClient.getAlbumById(id.replace(/JM/i, ""));
+      const imagePath = await jmClient.downloadFirstImageByAlbum(album);
+      const messageId = session.messageId;
+      const imageBuffer = await readFile(imagePath);
+      session.send([h.quote(messageId), h.image(imageBuffer, "webp")]);
+    });
+  }
 }

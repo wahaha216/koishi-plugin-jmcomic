@@ -230,6 +230,73 @@ export class JMAppClient extends JMClientAbstract {
     await this.decodeByPhoto(photo, type, albumId, single);
   }
 
+  public async downloadFirstImageByAlbum(album: JMAppAlbum): Promise<string> {
+    // 本子ID
+    const id = album.getId();
+    // 本子存放路径
+    const path = `${this.root}/album/${id}`;
+    // 创建文件夹
+    await mkdir(path, { recursive: true });
+
+    const photos: JMAppPhoto[] = album.getPhotos();
+    return await this.downloadAndDecodeFirstImageByPhoto(
+      photos[0],
+      "album",
+      id,
+      photos.length === 1
+    );
+  }
+
+  public async downloadAndDecodeFirstImageByPhoto(
+    photo: JMAppPhoto,
+    type: "photo" | "album" = "photo",
+    albumId: string = "",
+    single: boolean = false
+  ): Promise<string> {
+    const image = photo.getImages()[0];
+    const id = photo.getId();
+    let path = `${this.root}/${type}/${id}/origin`;
+    if (type === "album") {
+      if (single) {
+        path = `${this.root}/${type}/${albumId}/origin`;
+      } else {
+        path = `${this.root}/${type}/${albumId}/origin/${id}`;
+      }
+    }
+    if (this.config.debug) this.logger.info(`存储目录：${path}`);
+    await mkdir(path, { recursive: true });
+    const url = `/media/photos/${id}/${image}`;
+    if (this.config.debug) this.logger.info(`下载图片：${url}`);
+
+    const res = await requestWithUrlSwitch<ArrayBuffer>(
+      url,
+      "GET",
+      { responseType: "arraybuffer" },
+      this.http,
+      this.config,
+      this.logger,
+      "IMAGE"
+    );
+    await saveImage(res, `${path}/${image}`);
+    if (this.config.debug) this.logger.info(`${id} 下载完成，开始解密图片`);
+
+    let decodedPath = `${this.root}/${type}/${id}/decoded`;
+    if (type === "album" && !single) {
+      path = `${this.root}/${type}/${albumId}/origin/${id}`;
+      decodedPath = `${this.root}/${type}/${albumId}/decoded/${id}`;
+    }
+    await mkdir(decodedPath, { recursive: true });
+    const scramble_id = await this.requestScrambleId(id);
+    photo.generateSplitNumbers(scramble_id);
+    const splitNumber = photo.getSplitNumbers()[0];
+    const imagePath = `${path}/${image}`;
+    if (this.config.debug) this.logger.info(`解密图片：${imagePath}`);
+    const decodedImagePath = `${decodedPath}/${image}`;
+    const imageBuffer = await readFile(imagePath);
+    await decodeImage(imageBuffer, splitNumber, decodedImagePath);
+    return decodedImagePath;
+  }
+
   public async decodeByPhoto(
     photo: JMPhotoAbstract,
     type: "photo" | "album" = "photo",

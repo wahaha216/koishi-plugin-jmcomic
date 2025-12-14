@@ -4,10 +4,11 @@ import { readFile, rm } from "node:fs/promises";
 import { JMAppClient } from "../entity/JMAppClient";
 import { formatFileName, getFileInfo } from "../utils/Utils";
 import { AlbumNotExistError, MySqlError, PhotoNotExistError } from "../error";
+import Puppeteer from "koishi-plugin-puppeteer";
 
 // 定义通用的任务负载类型
 export type JmTaskPayload = {
-  type: "album" | "photo";
+  type: "album" | "photo" | "blog";
   id: string; // albumId 或 photoId
   session: Session;
   messageId: string;
@@ -31,7 +32,8 @@ export const createJmProcessor = (
   processorConfig: ProcessorConfig,
   http: HTTP,
   config: Config,
-  logger: Logger
+  logger: Logger,
+  puppeteer: Puppeteer
 ) => {
   const {
     root,
@@ -48,60 +50,50 @@ export const createJmProcessor = (
     const { id, session, messageId, scope } = payload; // id 现在是通用字段
 
     try {
-      const jmClient = new JMAppClient(root, http, config, logger);
+      const jmClient = new JMAppClient(root, http, config, logger, puppeteer);
       let filePath: string | string[];
-      let name: string;
-      let ext: string;
-      let dir: string = ""; // 初始化 dir
 
-      if (payload.type === "album") {
-        const album = await jmClient.getAlbumById(id);
-        await jmClient.downloadByAlbum(album);
+      switch (payload.type) {
+        case "album": {
+          const album = await jmClient.getAlbumById(id);
+          await jmClient.downloadByAlbum(album);
 
-        if (sendMethod === "zip") {
-          filePath = await jmClient.albumToZip(album, password, level);
-        } else {
-          filePath = await jmClient.albumToPdf(album, password);
+          if (sendMethod === "zip") {
+            filePath = await jmClient.albumToZip(album, password, level);
+          } else {
+            filePath = await jmClient.albumToPdf(album, password);
+          }
+          break;
         }
+        case "photo": {
+          const photo = await jmClient.getPhotoById(id);
+          await jmClient.downloadByPhoto(photo);
+          const photoName = photo.getName(); // 获取章节名称
 
-        // 处理返回的路径（字符串或数组）
-        if (typeof filePath === "string") {
-          const fileInfo = getFileInfo(filePath);
-          name = formatFileName(fileName, fileInfo.fileName, id);
-          ext = fileInfo.ext;
-          dir = fileInfo.dir;
-        } else {
-          // 字符串数组
-          // 统一处理多文件的情况，这里只取第一个文件的信息作为基准，或者你可以根据需求调整
-          const firstPath = filePath[0];
-          const fileInfo = getFileInfo(firstPath);
-          name = formatFileName(fileName, fileInfo.fileName, id); // 名称可能需要进一步处理以反映多部分
-          ext = fileInfo.ext; // 扩展名
-          dir = fileInfo.dir; // 目录
+          if (sendMethod === "zip") {
+            filePath = await jmClient.photoToZip(
+              photo,
+              photoName,
+              password,
+              level
+            );
+          } else {
+            filePath = await jmClient.photoToPdf(photo, photoName);
+          }
+          break;
         }
-      } else if (payload.type === "photo") {
-        const photo = await jmClient.getPhotoById(id);
-        await jmClient.downloadByPhoto(photo);
-        const photoName = photo.getName(); // 获取章节名称
-
-        if (sendMethod === "zip") {
-          filePath = await jmClient.photoToZip(
-            photo,
-            photoName,
-            password,
-            level
-          );
-        } else {
-          filePath = await jmClient.photoToPdf(photo, photoName);
+        case "blog": {
+          const blog = await jmClient.getBlogById(id);
+          if (sendMethod === "zip") {
+            filePath = await jmClient.blogToZip(blog, password, level);
+          } else {
+            filePath = await jmClient.blogToPdf(blog, password);
+          }
+          return;
         }
-
-        const fileInfo = getFileInfo(filePath as string); // photoToZip/Pdf 返回单字符串
-        name = formatFileName(fileName, fileInfo.fileName, id);
-        ext = fileInfo.ext;
-        dir = fileInfo.dir;
-      } else {
         // 理论上不会走到这里，但为了类型安全和健壮性，可以抛出错误
-        throw new Error(`未知任务类型: ${(payload as any).type}`);
+        default:
+          throw new Error(`未知任务类型: ${(payload as any).type}`);
       }
 
       // --- 统一发送文件逻辑 ---

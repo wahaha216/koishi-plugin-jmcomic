@@ -7,6 +7,7 @@ import { createJmProcessor } from "./processors/jmProcessor";
 import { Queue } from "./utils/Queue";
 import {} from "@koishijs/plugin-notifier";
 import {} from "koishi-plugin-cron";
+import {} from "koishi-plugin-puppeteer";
 import { readFile } from "fs/promises";
 
 export const name = "jmcomic";
@@ -82,7 +83,7 @@ export const Config: Schema<Config> = Schema.intersect([
 });
 
 export const inject = {
-  required: ["http"],
+  required: ["http", "puppeteer"],
   optional: ["notifier", "cron"],
 };
 
@@ -134,7 +135,8 @@ export async function apply(ctx: Context, config: Config) {
     processorConfig,
     ctx.http,
     config,
-    logger
+    logger,
+    ctx.puppeteer
   );
 
   // 初始化一个队列实例，处理所有 JM 相关的下载任务
@@ -198,6 +200,43 @@ export async function apply(ctx: Context, config: Config) {
     });
 
   ctx
+    .command("jm.blog <blogId:string>")
+    .alias("JM文库")
+    .action(async ({ session }, blogId) => {
+      const messageId = session.messageId;
+      if (!/^\d+$/.test(blogId)) {
+        await session.send([
+          h.quote(messageId),
+          h.text("输入的ID不合法，请检查"),
+        ]);
+        return;
+      }
+      // 添加任务到队列
+      const { task, pendingAhead, queuePosition } = queue.add({
+        type: "blog",
+        id: blogId,
+        session,
+        messageId,
+        scope: session.scope,
+      });
+      const params = {
+        id: blogId,
+        ahead: pendingAhead,
+        pos: queuePosition,
+        status: task.status,
+      };
+      const msg: h.Fragment = [h.quote(messageId)];
+      if (pendingAhead === 0 && queuePosition === 1) {
+        msg.push(h.text(session.text(".queueFirst", params)));
+      } else if (pendingAhead > 0) {
+        msg.push(h.text(session.text(".queuePosition", params)));
+      } else {
+        msg.push(h.text(session.text(".queueProcessing", params)));
+      }
+      await session.send(msg);
+    });
+
+  ctx
     .command("jm.album.info <albumId:string>")
     .alias("本子信息")
     .action(async ({ session, options }, albumId) => {
@@ -210,7 +249,13 @@ export async function apply(ctx: Context, config: Config) {
         return;
       }
       try {
-        const jmClient = new JMAppClient(root, ctx.http, config, logger);
+        const jmClient = new JMAppClient(
+          root,
+          ctx.http,
+          config,
+          logger,
+          ctx.puppeteer
+        );
         const album = await jmClient.getAlbumById(albumId);
         await session.send([
           h.quote(messageId),
@@ -254,7 +299,13 @@ export async function apply(ctx: Context, config: Config) {
         return;
       }
       try {
-        const jmClient = new JMAppClient(root, ctx.http, config, logger);
+        const jmClient = new JMAppClient(
+          root,
+          ctx.http,
+          config,
+          logger,
+          ctx.puppeteer
+        );
         const searchResult = await jmClient.search(keyword);
         const contents = searchResult.content;
         const fragment: h.Fragment = [h.quote(messageId)];
@@ -348,7 +399,13 @@ export async function apply(ctx: Context, config: Config) {
       const numbers = text.match(regexp);
       if (!numbers?.length) return;
       const id = numbers[0];
-      const jmClient = new JMAppClient(root, ctx.http, config, logger);
+      const jmClient = new JMAppClient(
+        root,
+        ctx.http,
+        config,
+        logger,
+        ctx.puppeteer
+      );
       const album = await jmClient.getAlbumById(id.replace(/JM/i, ""));
       const imagePath = await jmClient.downloadFirstImageByAlbum(album);
       const messageId = session.messageId;

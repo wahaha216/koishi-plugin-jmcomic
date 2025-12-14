@@ -82,6 +82,80 @@ export interface IJMPhoto {
   scramble_id: number;
 }
 
+export interface IJMBlog {
+  info: IJMBlogInfo;
+  related_comics: IJMBlogRelatedComics[];
+  related_blogs: IJMBlogRelatedBlog[];
+}
+
+export interface IJMBlogInfo {
+  id: string;
+  uid: string;
+  title: string;
+  tags: string[];
+  content: string;
+  photo: string;
+  total_views: string;
+  total_comments: string;
+  total_likes: string;
+  username: string;
+  nickname: string;
+  user_photo?: string;
+  category: {
+    name: string;
+    slug: string;
+  };
+  expInfo: {
+    level_name: string;
+    level: number;
+    nextLevelExp: number;
+    exp: string;
+    expPercent: number;
+    uid: string;
+    badges: string[];
+  };
+  game_url: string;
+  is_liked: boolean;
+}
+
+export interface IJMBlogRelatedComics {
+  id: string;
+  author: string;
+  description: string;
+  name: string;
+  image: string;
+  category: {
+    id: string;
+    title: string;
+  };
+  category_sub: {
+    id: string;
+    title: string;
+  };
+}
+
+export interface IJMBlogRelatedBlog {
+  id: string;
+  uid: string;
+  username: string;
+  user_photo: string;
+  gender: "Male" | "Female";
+  game_url: string;
+  gid: string;
+  title: string;
+  tags: string[];
+  category: {
+    name: string;
+    slug: string;
+  };
+  content: string;
+  photo: string;
+  total_views: string;
+  total_comments: string;
+  total_likes: string;
+  date: string;
+}
+
 export interface IJMSearchCategory {
   id: string;
   title: "同人";

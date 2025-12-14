@@ -45,6 +45,16 @@ commands:
         type:
           album: 本子
           photo: 章节
+    blog:
+      examples: |-
+        jm album 数字ID
+      messages:
+        addedToQueue: 已将 {id} 添加到处理队列，请稍候。
+        queueFirst: 已将 {id} 添加到处理队列，即将开始处理
+        queuePosition: "已将 {id} 添加到处理队列\n前面还有 {ahead} 个任务等待或正在处理"
+        queueProcessing: "已将 {id} 添加到处理队列\n当前任务状态：{status}"
+        notExistError: 找不到该ID对应的本子
+        mysqlError: 已尝试所有备用地址，但是JM坏掉了
     search:
       example: jm search <关键词>
       messages:

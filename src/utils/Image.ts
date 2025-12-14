@@ -3,6 +3,7 @@ import sharp from "sharp";
 import archiver from "archiver";
 import archiverZipEncrypted from "archiver-zip-encrypted";
 import { Directorys } from "../types";
+import { basename } from "path";
 
 export async function decodeImage(
   imageBuffer: Buffer | ArrayBuffer,
@@ -113,6 +114,39 @@ export async function archiverImage(
   directorys.forEach(({ directory, destpath }) => {
     archive.directory(directory, destpath);
   });
+
+  // 完成压缩
+  await archive.finalize();
+}
+
+export async function archiverFile(
+  path: string,
+  outputPath: string,
+  password?: string,
+  level: number = 9
+) {
+  // 检查是否注册过
+  if (!archiver.isRegisteredFormat("zip-encrypted")) {
+    archiver.registerFormat("zip-encrypted", archiverZipEncrypted);
+  }
+
+  // 创建输出流
+  const output = fs.createWriteStream(outputPath);
+  const options: archiver.ArchiverOptions = {
+    zlib: { level }, // 压缩级别
+  };
+  if (password) {
+    options["encryptionMethod"] = "aes256"; // 使用 AES-256 加密
+    options["password"] = password;
+  }
+  // 创建压缩实例
+  const archive = archiver.create(password ? "zip-encrypted" : "zip", options);
+
+  // 管道输出到文件
+  archive.pipe(output);
+
+  // 添加文件夹
+  archive.file(path, { name: basename(path) });
 
   // 完成压缩
   await archive.finalize();

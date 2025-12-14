@@ -8,14 +8,20 @@ import {
   IJMPhoto,
   IJMResponse,
   IJMSearchResult,
+  IJMBlog,
 } from "../types/JMClient";
 import { JM_SCRAMBLE_ID } from "../utils/Regexp";
 import { JMClientAbstract } from "../abstract/JMClientAbstract";
 import { JMAppPhoto } from "./JMAppPhoto";
 import { JMAppAlbum } from "./JMAppAlbum";
 import { JMPhotoAbstract } from "../abstract/JMPhotoAbstract";
-import { readFile, mkdir, rm } from "fs/promises";
-import { archiverImage, decodeImage, saveImage } from "../utils/Image";
+import { readFile, mkdir, rm, writeFile } from "fs/promises";
+import {
+  archiverFile,
+  archiverImage,
+  decodeImage,
+  saveImage,
+} from "../utils/Image";
 import {
   fileExistsAsync,
   fileSizeAsync,
@@ -28,6 +34,8 @@ import { extname, join } from "path";
 import sharp from "sharp";
 import { Recipe } from "muhammara";
 import { AlbumNotExistError, PhotoNotExistError } from "../error";
+import { JMAppBlog } from "./JMAppBlog";
+import Puppeteer from "koishi-plugin-puppeteer";
 
 export class JMAppClient extends JMClientAbstract {
   static APP_VERSION = "1.7.9";
@@ -47,11 +55,20 @@ export class JMAppClient extends JMClientAbstract {
    */
   private http: HTTP;
 
-  constructor(root: string, http: HTTP, config: Config, logger: Logger) {
+  private puppeteer: Puppeteer;
+
+  constructor(
+    root: string,
+    http: HTTP,
+    config: Config,
+    logger: Logger,
+    puppeteer: Puppeteer
+  ) {
     super(root);
     this.config = config;
     this.logger = logger;
     this.http = http;
+    this.puppeteer = puppeteer;
   }
 
   /**
@@ -158,6 +175,27 @@ export class JMAppClient extends JMClientAbstract {
     const image_ids = images.map((image) => image.split(".")[0]);
     photo.setImageNames(image_ids);
     return photo;
+  }
+
+  public async getBlogById(id: string): Promise<JMAppBlog> {
+    if (this.config.debug) this.logger.info(`获取文库(${id})信息`);
+    const timestamp = this.getTimeStamp();
+    const { token, tokenparam } = this.getTokenAndTokenParam(timestamp);
+    const res = await requestWithUrlSwitch(
+      "/blog",
+      "POST",
+      {
+        params: { id },
+        headers: { token, tokenparam },
+        responseType: "json",
+      },
+      this.http,
+      this.config,
+      this.logger
+    );
+    const blog_json = this.decodeBase64<IJMBlog>(res.data, timestamp);
+    if (!blog_json?.info?.title) throw new AlbumNotExistError();
+    return JMAppBlog.fromJson(blog_json);
   }
 
   public async downloadByAlbum(album: JMAppAlbum): Promise<void> {
@@ -454,6 +492,64 @@ export class JMAppClient extends JMClientAbstract {
     return pdfPath;
   }
 
+  public async blogToPdf(blog: JMAppBlog, password?: string): Promise<string> {
+    const pdfName = sanitizeFileName(blog.Info.title);
+    if (this.config.debug) this.logger.info(`开始生成PDF ${pdfName}.pdf`);
+    const path = join(this.root, "blog", `${blog.Info.id}`);
+    await mkdir(path, { recursive: true });
+    const pdfPath = join(path, `${pdfName}.pdf`);
+    const pdfTempPath = join(path, `temp.pdf`);
+    await this.writeBlogPdf(blog, pdfTempPath);
+    try {
+      const recipe = new Recipe(pdfTempPath, pdfPath);
+      if (password) {
+        recipe.encrypt({
+          userPassword: password,
+          ownerPassword: password,
+          userProtectionFlag: 4,
+        });
+      }
+      recipe.endPDF(() => {
+        if (this.config.debug) this.logger.info(`PDF ${pdfName}.pdf 生成完成`);
+      });
+    } catch (error) {
+      throw new Error(error);
+    } finally {
+      await rm(pdfTempPath, { recursive: true, force: true });
+    }
+    return pdfPath;
+  }
+
+  private async writeBlogPdf(blog: JMAppBlog, pdfPath: string) {
+    const context = await this.puppeteer.browser.createBrowserContext();
+    const page = await context.newPage();
+    await page.setViewport({
+      width: 0,
+      height: 0,
+      deviceScaleFactor: 1,
+    });
+    await page.evaluate((title) => {
+      document.title = title;
+    }, blog.Info.title);
+    await page.setContent(blog.Info.content, {
+      waitUntil: "networkidle0",
+      timeout: 60 * 1000,
+    });
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true, // 确保背景颜色和图片被打印
+      margin: {
+        top: "25mm",
+        right: "25mm",
+        bottom: "25mm",
+        left: "25mm",
+      },
+    });
+    await writeFile(pdfPath, pdfBuffer);
+    context.close();
+    page.close();
+  }
+
   public async albumToZip(
     album: JMAppAlbum,
     password?: string,
@@ -503,6 +599,23 @@ export class JMAppClient extends JMClientAbstract {
       password,
       level
     );
+    if (this.config.debug) this.logger.info(`ZIP ${zipName}.zip 生成完成`);
+    return zipPath;
+  }
+
+  public async blogToZip(
+    blog: JMAppBlog,
+    password?: string,
+    level: number = 6
+  ): Promise<string> {
+    const zipName = sanitizeFileName(blog.Info.title);
+    if (this.config.debug) this.logger.info(`开始生成ZIP ${zipName}.zip`);
+    const path = join(this.root, "blog", `${blog.Info.id}`);
+    await mkdir(path, { recursive: true });
+    const pdfPath = join(path, `${zipName}.pdf`);
+    const zipPath = join(path, `${zipName}.zip`);
+    await this.writeBlogPdf(blog, pdfPath);
+    await archiverFile(pdfPath, zipPath, password, level);
     if (this.config.debug) this.logger.info(`ZIP ${zipName}.zip 生成完成`);
     return zipPath;
   }

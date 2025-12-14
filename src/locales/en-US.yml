@@ -55,6 +55,15 @@ commands:
         category: category
         description: description
         pagination: Total {total}, current {page} page, each page {pageSize}
+    blog:
+      examples: jm blog blogID
+      messages:
+        addedToQueue: Blog {id} has been added to the processing queue. Please wait.
+        queueFirst: "Added {id} to the processing queue, starting shortly."
+        queuePosition: "Added {id} to the processing queue.\nThere are {ahead} tasks ahead or currently processing."
+        queueProcessing: "Added {id} to the processing queue.\nCurrent task status: {status}"
+        notExistError: blogID not found
+        mysqlError: All alternate addresses have been tried. But no response.
 _config:
   - $desc: Basic settings
     sendMethod: Send method

@@ -164,7 +164,7 @@ export class JMHtmlClient extends JMClientAbstract {
           return !fileExists || !fileSize;
         })
         .map((image, index) => async () => {
-          const res = await requestWithRetry<ArrayBuffer>(
+          const res = await requestWithRetry<Buffer>(
             urls[index],
             "GET",
             { responseType: "arraybuffer" },

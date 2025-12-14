@@ -251,7 +251,7 @@ export class JMAppClient extends JMClientAbstract {
           const url = `/media/photos/${id}/${image}`;
           if (this.config.debug) this.logger.info(`下载图片：${url}`);
 
-          const res = await requestWithUrlSwitch<ArrayBuffer>(
+          const res = await requestWithUrlSwitch<Buffer>(
             url,
             "GET",
             { responseType: "arraybuffer" },
@@ -306,7 +306,7 @@ export class JMAppClient extends JMClientAbstract {
     const url = `/media/photos/${id}/${image}`;
     if (this.config.debug) this.logger.info(`下载图片：${url}`);
 
-    const res = await requestWithUrlSwitch<ArrayBuffer>(
+    const res = await requestWithUrlSwitch<Buffer>(
       url,
       "GET",
       { responseType: "arraybuffer" },

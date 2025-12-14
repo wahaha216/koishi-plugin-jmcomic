@@ -6,7 +6,7 @@ import { Directorys } from "../types";
 import { basename } from "path";
 
 export async function decodeImage(
-  imageBuffer: Buffer | ArrayBuffer,
+  imageBuffer: Buffer,
   num: number,
   path: string
 ) {
@@ -68,10 +68,7 @@ export async function decodeImage(
   }
 }
 
-export async function saveImage(
-  imageBuffer: Buffer | ArrayBuffer,
-  path: string
-) {
+export async function saveImage(imageBuffer: Buffer, path: string) {
   if (!imageBuffer.byteLength) return;
   const buffer = Buffer.from(imageBuffer);
   await sharp(buffer).toFile(path);

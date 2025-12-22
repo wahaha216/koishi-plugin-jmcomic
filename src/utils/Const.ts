@@ -30,10 +30,10 @@ export const buildHtmlContent = (base64Images: string[]) => `
 `;
 
 export const JM_CLIENT_URL_LIST = [
-  "www.cdnmhwscc.vip",
-  "www.cdnblackmyth.club",
-  "www.cdnmhws.cc",
-  "www.cdnuc.vip",
+  "www.cdnaspa.vip",
+  "www.cdnaspa.club",
+  "www.cdnplaystation6.vip",
+  "www.cdnplaystation6.cc",
 ];
 
 export const JM_IMAGE_URL_LIST = [

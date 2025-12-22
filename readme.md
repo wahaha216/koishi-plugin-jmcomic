@@ -19,6 +19,15 @@ jm queue
 ## 更新日志
 
 <details>
+<summary>0.2.8</summary>
+
+1.解析时添加章节数日志
+
+2.替换最新的客户端域名
+
+</details>
+
+<details>
 <summary>0.2.7</summary>
 
 支持 JM 文库

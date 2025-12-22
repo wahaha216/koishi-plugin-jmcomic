@@ -148,6 +148,8 @@ export class JMAppClient extends JMClientAbstract {
       const photo = await this.getPhotoById(id);
       photos.push(photo);
     }
+    if (this.config.debug)
+      this.logger.info(`本子 ${id} 章节数：${photos.length}`);
     album.setPhotos(photos);
     return album;
   }

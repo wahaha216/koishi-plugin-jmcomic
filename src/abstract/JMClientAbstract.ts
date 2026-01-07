@@ -1,4 +1,3 @@
-import crypto from "crypto";
 import { IJMSearchResult, IJMUser } from "../types/JMClient";
 import { JMPhotoAbstract } from "./JMPhotoAbstract";
 import { JMAlbumAbstract } from "./JMAlbumAbstract";
@@ -134,13 +133,4 @@ export abstract class JMClientAbstract {
     albumId: string,
     single: boolean
   ): Promise<void>;
-
-  /**
-   * 使用MD5将字符串加密成十六进制
-   * @param key 要计算MD5的字符串
-   * @returns 十六进制MD5
-   */
-  public md5Hex(key: string, inputEncoding: crypto.Encoding = "utf-8") {
-    return crypto.createHash("md5").update(key, inputEncoding).digest("hex");
-  }
 }

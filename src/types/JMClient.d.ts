@@ -184,3 +184,9 @@ export interface IJMSearchResult {
   total: string;
   content: IJMSearchContent[];
 }
+
+export interface IJMUpdateDomainResponse {
+  Setting: string[];
+  Server: string[];
+  jm3_Server: string[];
+}

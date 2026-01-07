@@ -1,8 +1,9 @@
-import { AlbumNotExistError } from "../error/albumNotExist.error";
-import { PhotoNotExistError } from "../error/photoNotExist.error";
-import { MySqlError } from "../error/mysql.error";
-import { EmptyBufferError } from "../error/emptybuffer.error";
-import { OverRetryError } from "../error/overRetry.error";
+import { AlbumNotExistError } from "./albumNotExist.error";
+import { PhotoNotExistError } from "./photoNotExist.error";
+import { MySqlError } from "./mysql.error";
+import { EmptyBufferError } from "./emptybuffer.error";
+import { OverRetryError } from "./overRetry.error";
+import { AllDomainFailedError } from "./allDomainFailed.error";
 
 export {
   AlbumNotExistError,
@@ -10,4 +11,5 @@ export {
   MySqlError,
   EmptyBufferError,
   OverRetryError,
+  AllDomainFailedError,
 };

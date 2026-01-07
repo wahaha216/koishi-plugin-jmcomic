@@ -44,3 +44,14 @@ export const JM_IMAGE_URL_LIST = [
   "cdn-msp.jmapinodeudzn.net",
   "cdn-msp3.jmapinodeudzn.net",
 ];
+
+export const JM_API_URL_DOMAIN_SERVER_LIST = [
+  "https://rup4a04-c01.tos-ap-southeast-1.bytepluses.com/newsvr-2025.txt",
+  "https://rup4a04-c02.tos-cn-hongkong.bytepluses.com/newsvr-2025.txt",
+];
+
+export const JM_APP_VERSION = "1.7.9";
+export const JM_APP_TOKEN_SECRET = "18comicAPP";
+export const JM_APP_TOKEN_SECRET_2 = "18comicAPPContent";
+export const JM_APP_DATA_SECRET = "185Hcomic3PAPP7R";
+export const JM_API_DOMAIN_SERVER_SECRET = "diosfjckwpqpdfjkvnqQjsik";

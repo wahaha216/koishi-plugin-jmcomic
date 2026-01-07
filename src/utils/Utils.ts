@@ -3,12 +3,24 @@ import { readdir, stat, rm } from "fs/promises";
 import { Config } from "..";
 import { JUMP_URL, URL_LOCATION } from "./Regexp";
 import { HTTP, Logger } from "koishi";
-import { IJMResponse } from "../types/JMClient";
-import { JM_CLIENT_URL_LIST, JM_IMAGE_URL_LIST } from "./Const";
+import { IJMResponse, IJMUpdateDomainResponse } from "../types/JMClient";
+import {
+  JM_API_DOMAIN_SERVER_SECRET,
+  JM_API_URL_DOMAIN_SERVER_LIST,
+  JM_APP_DATA_SECRET,
+  JM_APP_TOKEN_SECRET,
+  JM_APP_VERSION,
+  JM_CLIENT_URL_LIST,
+  JM_IMAGE_URL_LIST,
+} from "./Const";
 import { normalize, parse } from "path";
-import { MySqlError } from "../error/mysql.error";
-import { OverRetryError } from "../error/overRetry.error";
-import { EmptyBufferError } from "../error/emptybuffer.error";
+import {
+  MySqlError,
+  OverRetryError,
+  EmptyBufferError,
+  AllDomainFailedError,
+} from "../error";
+import { createDecipheriv, createHash, Encoding } from "crypto";
 
 /**
  * 文件是否存在
@@ -198,9 +210,12 @@ export async function requestWithUrlSwitch<T = IJMResponse>(
   pluginsConfig: Config,
   logger: Logger,
   type: "IMAGE" | "CLIENT" = "CLIENT",
-  urlIndex: number = 0
+  urlIndex: number = 0,
+  isUpdate: boolean = false
 ) {
   const list = type === "CLIENT" ? JM_CLIENT_URL_LIST : JM_IMAGE_URL_LIST;
+  console.log(list);
+
   const urlCount = list.length;
   const url_bak = url;
   if (url.startsWith("/")) {
@@ -221,12 +236,13 @@ export async function requestWithUrlSwitch<T = IJMResponse>(
       }
       return res;
     } else {
-      throw new Error("所有域名请求失败");
+      throw new AllDomainFailedError();
     }
   } catch (error) {
     const isMysqlError = error instanceof MySqlError;
     const isEmptyBuffer = error instanceof EmptyBufferError;
     const isOverRetryError = error instanceof OverRetryError;
+    const isAllDomainFailedError = error instanceof AllDomainFailedError;
 
     if (isMysqlError || isEmptyBuffer || isOverRetryError) {
       logger.info(`请求失败，尝试切换域名... ${urlIndex + 1}/${urlCount}`);
@@ -238,9 +254,26 @@ export async function requestWithUrlSwitch<T = IJMResponse>(
         pluginsConfig,
         logger,
         type,
-        urlIndex + 1
+        urlIndex + 1,
+        isUpdate
+      );
+    } else if (isAllDomainFailedError && !isUpdate) {
+      logger.info(`请求失败，尝试更新域名...`);
+      const res = await updateApiDomain(http, pluginsConfig, logger);
+      if (!res) throw new AllDomainFailedError();
+      return await requestWithUrlSwitch<T>(
+        url_bak,
+        method,
+        config,
+        http,
+        pluginsConfig,
+        logger,
+        type,
+        0,
+        true
       );
     }
+
     throw new Error(error);
   }
 }
@@ -306,4 +339,78 @@ export function formatFileName(
     .replaceAll("{{id}}", id)
     .replaceAll("{{index}}", index ? `${index}` : "")
     .trim();
+}
+
+export function md5Hex(key: string, inputEncoding: Encoding = "utf-8") {
+  return createHash("md5").update(key, inputEncoding).digest("hex");
+}
+
+/**
+ * 解密加密字符串
+ * @param timestamp 请求时传递的时间戳
+ * @param base64 待解密的字符串
+ * @param secret
+ * @returns 解密结果，JSON
+ */
+export function decodeBase64<T = Record<string, unknown>>(
+  base64: string,
+  timestamp: number | string,
+  secret: string = JM_APP_DATA_SECRET
+): T {
+  const dataB64 = Buffer.from(base64, "base64");
+
+  // 计算密钥
+  const md5 = md5Hex(`${timestamp}${secret}`);
+
+  // 32位key
+  const key = Buffer.from(md5);
+  // 解密
+  const decipher = createDecipheriv("aes-256-ecb", key, null);
+  // decipher.setAutoPadding(false); // 禁用自动填充处理
+  let dataAES = decipher.update(dataB64);
+  // 拼接全部
+  let decrypted = Buffer.concat([dataAES, decipher.final()]);
+
+  const decodedString = decrypted.toString("utf-8");
+
+  // 3. 移除 padding
+  // const paddingLength = dataAES[dataAES.length - 1];
+  // const dataWithoutPadding = dataAES.slice(0, dataAES.length - paddingLength);
+
+  // 转换为 UTF-8 字符串并解析 JSON
+  return JSON.parse(decodedString);
+}
+
+export async function updateApiDomain(
+  http: HTTP,
+  config: Config,
+  logger: Logger
+): Promise<boolean> {
+  for (const url of JM_API_URL_DOMAIN_SERVER_LIST) {
+    try {
+      const encodeText = await requestWithRetry<string>(
+        url,
+        "GET",
+        { responseType: "text" },
+        http,
+        config,
+        logger
+      );
+      const domainJson = decodeBase64<IJMUpdateDomainResponse>(
+        encodeText,
+        "",
+        JM_API_DOMAIN_SERVER_SECRET
+      );
+      JM_CLIENT_URL_LIST.splice(0, JM_CLIENT_URL_LIST.length);
+      JM_CLIENT_URL_LIST.push(...domainJson.Server);
+      console.log(domainJson);
+
+      console.log(JM_CLIENT_URL_LIST);
+
+      return true;
+    } catch (error) {
+      console.log(error);
+    }
+  }
+  return false;
 }

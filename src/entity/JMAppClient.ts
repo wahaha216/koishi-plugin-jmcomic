@@ -1,6 +1,6 @@
 import { Config } from "..";
 import { Logger, HTTP } from "koishi";
-import { createHash, createDecipheriv } from "crypto";
+import { createHash } from "crypto";
 import FormData from "form-data";
 import {
   IJMAlbum,
@@ -23,6 +23,7 @@ import {
   saveImage,
 } from "../utils/Image";
 import {
+  decodeBase64,
   fileExistsAsync,
   fileSizeAsync,
   limitPromiseAll,
@@ -36,12 +37,13 @@ import { Recipe } from "muhammara";
 import { AlbumNotExistError, PhotoNotExistError } from "../error";
 import { JMAppBlog } from "./JMAppBlog";
 import Puppeteer from "koishi-plugin-puppeteer";
+import {
+  JM_APP_TOKEN_SECRET,
+  JM_APP_TOKEN_SECRET_2,
+  JM_APP_VERSION,
+} from "../utils/Const";
 
 export class JMAppClient extends JMClientAbstract {
-  static APP_VERSION = "1.7.9";
-  static APP_TOKEN_SECRET = "18comicAPP";
-  static APP_TOKEN_SECRET_2 = "18comicAPPContent";
-  static APP_DATA_SECRET = "185Hcomic3PAPP7R";
   /**
    * koishi 配置项
    */
@@ -96,7 +98,7 @@ export class JMAppClient extends JMClientAbstract {
       formData,
       { headers, responseType: "json" }
     );
-    return this.decodeBase64<IJMUser>(res.data, timestamp);
+    return decodeBase64<IJMUser>(res.data, timestamp);
   }
 
   public async search(keyword: string): Promise<IJMSearchResult> {
@@ -115,7 +117,7 @@ export class JMAppClient extends JMClientAbstract {
       this.config,
       this.logger
     );
-    return this.decodeBase64<IJMSearchResult>(searchRes.data, timestamp);
+    return decodeBase64<IJMSearchResult>(searchRes.data, timestamp);
   }
 
   public async getAlbumById(id: string): Promise<JMAppAlbum> {
@@ -134,7 +136,7 @@ export class JMAppClient extends JMClientAbstract {
       this.config,
       this.logger
     );
-    const album_json = this.decodeBase64<IJMAlbum>(res.data, timestamp);
+    const album_json = decodeBase64<IJMAlbum>(res.data, timestamp);
     if (!album_json.name) throw new AlbumNotExistError();
     const album = JMAppAlbum.fromJson(album_json);
     const series = album.getSeries();
@@ -170,7 +172,7 @@ export class JMAppClient extends JMClientAbstract {
       this.config,
       this.logger
     );
-    const photo_json = this.decodeBase64<IJMPhoto>(res.data, timestamp);
+    const photo_json = decodeBase64<IJMPhoto>(res.data, timestamp);
     if (!photo_json.name) throw new PhotoNotExistError();
     const photo = JMAppPhoto.fromJson(photo_json);
     const images = photo.getImages();
@@ -195,7 +197,7 @@ export class JMAppClient extends JMClientAbstract {
       this.config,
       this.logger
     );
-    const blog_json = this.decodeBase64<IJMBlog>(res.data, timestamp);
+    const blog_json = decodeBase64<IJMBlog>(res.data, timestamp);
     if (!blog_json?.info?.title) throw new AlbumNotExistError();
     return JMAppBlog.fromJson(blog_json);
   }
@@ -639,7 +641,7 @@ export class JMAppClient extends JMClientAbstract {
     const timestamp = this.getTimeStamp();
     const { token, tokenparam } = this.getTokenAndTokenParam(
       timestamp,
-      JMAppClient.APP_TOKEN_SECRET_2
+      JM_APP_TOKEN_SECRET_2
     );
     const html = await requestWithUrlSwitch<string>(
       "/chapter_view_template",
@@ -661,48 +663,12 @@ export class JMAppClient extends JMClientAbstract {
    */
   private getTokenAndTokenParam(
     timestamp: number,
-    secret: string = JMAppClient.APP_TOKEN_SECRET,
-    version: string = JMAppClient.APP_VERSION
+    secret: string = JM_APP_TOKEN_SECRET,
+    version: string = JM_APP_VERSION
   ) {
     const key = `${timestamp}${secret}`;
     const token = createHash("md5").update(key).digest("hex");
     const tokenparam = `${timestamp},${version}`;
     return { token, tokenparam };
-  }
-
-  /**
-   * 解密加密字符串
-   * @param timestamp 请求时传递的时间戳
-   * @param base64 待解密的字符串
-   * @param secret
-   * @returns 解密结果，JSON
-   */
-  private decodeBase64<T = Record<string, unknown>>(
-    base64: string,
-    timestamp: number,
-    secret: string = JMAppClient.APP_DATA_SECRET
-  ): T {
-    const dataB64 = Buffer.from(base64, "base64");
-
-    // 计算密钥
-    const md5 = this.md5Hex(`${timestamp}${secret}`);
-
-    // 32位key
-    const key = Buffer.from(md5);
-    // 解密
-    const decipher = createDecipheriv("aes-256-ecb", key, null);
-    // decipher.setAutoPadding(false); // 禁用自动填充处理
-    let dataAES = decipher.update(dataB64);
-    // 拼接全部
-    let decrypted = Buffer.concat([dataAES, decipher.final()]);
-
-    const decodedString = decrypted.toString("utf-8");
-
-    // 3. 移除 padding
-    // const paddingLength = dataAES[dataAES.length - 1];
-    // const dataWithoutPadding = dataAES.slice(0, dataAES.length - paddingLength);
-
-    // 转换为 UTF-8 字符串并解析 JSON
-    return JSON.parse(decodedString);
   }
 }

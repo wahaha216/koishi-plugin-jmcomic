@@ -19,6 +19,13 @@ jm queue
 ## 更新日志
 
 <details>
+<summary>0.2.9</summary>
+
+添加所有域名请求失败后，自动更新域名功能
+
+</details>
+
+<details>
 <summary>0.2.8</summary>
 
 1.解析时添加章节数日志

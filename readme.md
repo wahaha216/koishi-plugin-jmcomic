@@ -4,6 +4,37 @@
 
 下载 JM 漫画，无需 python。
 
+# Windows下的注意事项
+
+本插件使用了 `muhammara` 依赖，该依赖需要 `c++编译环境` ，因此windows极大概率会出现无法使用
+
+（貌似koishi安装插件时看不到报错，但插件无法使用大概率与此有关）
+
+```
+npm error gyp ERR! find VS **************************************************************
+npm error gyp ERR! find VS You need to install the latest version of Visual Studio
+npm error gyp ERR! find VS including the "Desktop development with C++" workload.
+npm error gyp ERR! find VS For more information consult the documentation at:
+npm error gyp ERR! find VS https://github.com/nodejs/node-gyp#on-windows
+npm error gyp ERR! find VS **************************************************************
+npm error gyp ERR! find VS 
+npm error gyp ERR! configure error 
+npm error gyp ERR! stack Error: Could not find any Visual Studio installation to use
+```
+
+## 解决方法1（推荐）
+使用官方源 registry https://registry.npmjs.org/， 官方源可以下载预编译文件，跳过本地编译
+
+## 解决方法2
+
+1. 前往 [Visual Studio 下载页面](https://visualstudio.microsoft.com/zh-hans/visual-cpp-build-tools/)。
+2. 下载并运行 Visual Studio Installer。
+3. 在安装界面中，勾选 “使用 C++ 的桌面开发” (Desktop development with C++)。
+4. 确保右侧的安装详细信息中勾选了：
+   - MSVC v14x - VS 2022 C++ x64/x86 生成工具
+   - Windows 10/11 SDK
+5. 安装
+
 ## 使用方式
 
 ```tex
